@@ -1,0 +1,28 @@
+# Catkin build products
+/build/
+/devel/
+/install/
+/log/
+/.catkin_tools/
+
+# ROS recordings and databases
+*.bag
+*.bag.active
+*.db3
+
+# Editor and local workspace settings
+.vscode/
+**/.vscode/
+.idea/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# C/C++ generated files
+compile_commands.json
+
+# Runtime logs and temporary files
+*.log
+*.tmp
+*~

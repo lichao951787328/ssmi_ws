@@ -1,0 +1,36 @@
+# Gazebo Fortress semantic segmentation label colors.
+#
+# Colors use standard RGB channel order. These values were measured from
+# synchronized /semantic/labels_map and /semantic/colored_map images.
+labels:
+  "0":
+    semantic: background
+    rgb: [0, 0, 0]
+
+  "1":
+    semantic: chair
+    rgb: [0, 33, 193]
+
+  "2":
+    semantic: television
+    rgb: [0, 67, 130]
+
+  "3":
+    semantic: table
+    rgb: [0, 101, 68]
+
+  "4":
+    semantic: boundary_wall
+    rgb: [0, 134, 5]
+
+  "5":
+    semantic: maze_wall
+    rgb: [0, 168, 199]
+
+  "6":
+    semantic: dynamic_obstacle
+    rgb: [255, 0, 255]
+
+  "7":
+    semantic: staircase
+    rgb: [255, 165, 0]

@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Gazebo pose stamps use simulation time. Keep every ROS / TF consumer
+         on the same clock so restarting or resetting the world is safe. -->
+    <param name="/use_sim_time" value="true"/>
+    <!-- Isolate every launch from stale or unrelated Ignition servers. All
+         processes started by this launch inherit the same partition. -->
+    <arg name="ign_partition" default="$(anon ssmi_ign_partition)"/>
+    <env name="IGN_PARTITION" value="$(arg ign_partition)"/>
+    <env name="IGN_GAZEBO_SYSTEM_PLUGIN_PATH"
+         value="$(find semantic_segmentation_husky)/../../devel/lib:$(optenv IGN_GAZEBO_SYSTEM_PLUGIN_PATH)"/>
+    <arg name="package_path" default="$(find semantic_segmentation_husky)"/>
+    <arg name="models_path" default="$(arg package_path)/sdf"/>
+    <arg name="world_name" default="world_large_dynamic.sdf"/>
+    <env name="IGN_GAZEBO_RESOURCE_PATH" value="$(arg models_path):$(optenv IGN_GAZEBO_RESOURCE_PATH '')"/>
+
+    <include file="$(find ros_ign_gazebo)/launch/ign_gazebo.launch">
+        <arg name="ign_args" value="-r -v 1 $(find semantic_segmentation_husky)/sdf/$(arg world_name)"/>
+    </include>
+
+
+    <!-- A fixed ROS node name replaces a stale bridge instead of allowing two
+         bridges to publish conflicting /clock and pose streams. -->
+    <node pkg="ros_ign_bridge" type="parameter_bridge" name="ros_ign_bridge" output="screen" args="
+                /clock@rosgraph_msgs/Clock[ignition.msgs.Clock
+                /rgbd_camera/camera_info@sensor_msgs/CameraInfo[ignition.msgs.CameraInfo
+                /rgbd_camera/image@sensor_msgs/Image[ignition.msgs.Image
+                /rgbd_camera/depth_image@sensor_msgs/Image[ignition.msgs.Image
+                
+                /model/husky_seg_cam/pose@geometry_msgs/PoseStamped[ignition.msgs.Pose
+                /model/husky_seg_cam/cmd_vel@geometry_msgs/Twist]ignition.msgs.Twist
+                /world/semantic_segmentation_world/model/husky_seg_cam/joint_state@sensor_msgs/JointState[ignition.msgs.Model
+
+                /semantic/colored_map@sensor_msgs/Image[ignition.msgs.Image
+                /semantic/labels_map@sensor_msgs/Image[ignition.msgs.Image
+                ">
+        <!-- Keep Gazebo's detector output private. The remapper below owns
+             the stable public semantic image topics. -->
+        <remap from="/semantic/colored_map" to="/semantic/raw_colored_map"/>
+        <remap from="/semantic/labels_map" to="/semantic/raw_labels_map"/>
+    </node>
+
+    <node pkg="semantic_segmentation_husky" type="dynamic_semantic_remap.py"
+          name="dynamic_semantic_remap" output="screen">
+        <param name="dynamic_label" value="6"/>
+        <rosparam param="dynamic_rgb">[255, 0, 255]</rosparam>
+        <!-- In this simulation the Label system is the dynamic detector and
+             marks only moving obstacle instances with source label 6. -->
+        <rosparam param="dynamic_source_labels">[6]</rosparam>
+    </node>
+
+                
+                
+
+                <!-- /model/husky_seg_cam/pose@geometry_msgs/PoseArray@ignition.msgs.Pose_V -->
+
+    <!-- Authoritative label -> semantic name -> exact RGB palette. -->
+    <rosparam file="$(find semantic_segmentation_husky)/config/label_colors_husky.yaml" command="load"/>
+
+    
+
+   <node name="dynamic_tf_broadcaster" pkg="semantic_segmentation_husky" type="dynamic_tf.py" output="screen">
+    </node>
+
+    
+
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find semantic_segmentation_husky)/rviz/octomap_cam.rviz"/>
+    
+    <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="husky_keyboard"  output="screen">
+        <remap from="cmd_vel" to="/model/husky_seg_cam/cmd_vel"/>
+    </node>
+
+</launch>

@@ -1,0 +1,42 @@
+octomap:
+    pointcloud_topic: "/semantic_pcl/semantic_pcl"
+    world_frame_id: "world"
+    resolution: 0.4
+    # The simulated RGB-D camera can see to 100 m. Limit semantic occupied
+    # insertion and free-space ray clearing to 30 m for a useful range / CPU
+    # compromise in the 100 x 100 m scene.
+    max_range: 14.0
+    raycast_range: 14.0
+    clamping_thres_min: 0.0001
+    clamping_thres_max: 0.99
+    occupancy_thres: 0.5
+    prob_hit: 0.7
+    prob_miss: 0.4
+    dynamic_free_updates: 64
+    dynamic_free_confirmations: 1
+    psi: 1
+    phi: -0.1
+    publish_2d_map: true
+    min_ground_z: 1
+    max_ground_z: 3.5
+    initialize_floor: true
+    initial_floor:
+        robot_frame_id: "base_link"
+        length: 1.2
+        width: 0.8
+        offset_x: 0.0
+        offset_y: 0.0
+        # Measured after the Fortress stance controllers settle: the Go2
+        # base / trunk frame is approximately 0.298 m above the ground.
+        base_to_ground: 0.298
+        # OctoMap stores voxel centers. Keep the occupied floor voxel below
+        # the physical surface, with its upper face aligned to the surface.
+        # This is essential at 0.4 m resolution because Go2 is only 0.298 m
+        # high; placing the voxel center above ground would intersect it.
+        align_voxel_top: true
+        clear_above_floor: true
+        clear_height: 1.0
+        semantic_rgb: [0, 0, 0]
+        rgb: [204, 204, 204]
+    # Writable default used when the node saves during shutdown.
+    save_path: /tmp/go2_semantic_map.ot

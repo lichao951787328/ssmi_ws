@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="model_name" default="go2_semantic"/>
+  <arg name="robot_name" default="go2"/>
+  <arg name="start_keyboard" default="false"/>
+
+  <param name="robot_name" value="$(arg robot_name)"/>
+
+  <node pkg="semantic_segmentation_go2" type="go2_fortress_control_adapter.py"
+        name="go2_fortress_control_adapter" output="screen" required="true">
+    <param name="model_name" value="$(arg model_name)"/>
+    <param name="robot_name" value="$(arg robot_name)"/>
+    <param name="state_timeout" value="0.25"/>
+    <param name="command_timeout" value="0.25"/>
+    <param name="keyboard_timeout" value="0.5"/>
+    <param name="motion_threshold" value="0.19"/>
+    <param name="publish_rate" value="500.0"/>
+    <param name="start_blend_duration" value="0.6"/>
+    <param name="stop_blend_duration" value="0.25"/>
+    <param name="max_tilt_deg" value="35.0"/>
+  </node>
+
+  <!-- Use the supplied ONNX policy and controller without launching its
+       Gazebo Classic world, ros_control or Classic sensor plugins. -->
+  <node pkg="robot_control" type="robot_control" name="go2_rl_controller"
+        output="screen" required="true"
+        launch-prefix="bash -c 'sleep 1; exec $0 $@'"/>
+
+  <include if="$(arg start_keyboard)"
+           file="$(find robot_cmd)/launch/keyboard_teleop.launch"/>
+</launch>

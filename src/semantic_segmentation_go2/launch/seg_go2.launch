@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<launch>
+  <param name="/use_sim_time" value="true"/>
+
+  <arg name="ign_partition" default="$(anon ssmi_go2_ign_partition)"/>
+  <arg name="world_name" default="world_large_dynamic.sdf"/>
+  <arg name="model_name" default="go2_semantic"/>
+  <arg name="base_frame" default="base_link"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="start_control" default="true"/>
+  <env name="IGN_PARTITION" value="$(arg ign_partition)"/>
+  <env name="IGN_GAZEBO_SYSTEM_PLUGIN_PATH"
+       value="$(find semantic_segmentation_husky)/../../devel/lib:$(optenv IGN_GAZEBO_SYSTEM_PLUGIN_PATH)"/>
+  <env name="IGN_GAZEBO_RESOURCE_PATH"
+       value="$(find semantic_segmentation_go2)/models:$(find semantic_segmentation_go2)/sdf:$(optenv IGN_GAZEBO_RESOURCE_PATH '')"/>
+
+  <include file="$(find ros_ign_gazebo)/launch/ign_gazebo.launch">
+    <arg name="ign_args" value="-r -v 1 $(find semantic_segmentation_go2)/sdf/$(arg world_name)"/>
+  </include>
+
+  <node pkg="ros_ign_bridge" type="parameter_bridge" name="go2_ros_ign_bridge"
+        output="screen" args="
+          /clock@rosgraph_msgs/Clock[ignition.msgs.Clock
+          /rgbd_camera/camera_info@sensor_msgs/CameraInfo[ignition.msgs.CameraInfo
+          /rgbd_camera/image@sensor_msgs/Image[ignition.msgs.Image
+          /rgbd_camera/depth_image@sensor_msgs/Image[ignition.msgs.Image
+          /trunk_imu@sensor_msgs/Imu[ignition.msgs.IMU
+          /model/$(arg model_name)/pose@geometry_msgs/PoseStamped[ignition.msgs.Pose
+          /world/semantic_segmentation_world/model/$(arg model_name)/joint_state@sensor_msgs/JointState[ignition.msgs.Model
+          /model/$(arg model_name)/joint/FR_hip_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FR_thigh_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FR_calf_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FL_hip_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FL_thigh_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FL_calf_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RR_hip_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RR_thigh_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RR_calf_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RL_hip_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RL_thigh_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RL_calf_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /semantic/colored_map@sensor_msgs/Image[ignition.msgs.Image
+          /semantic/labels_map@sensor_msgs/Image[ignition.msgs.Image">
+    <remap from="/semantic/colored_map" to="/semantic/raw_colored_map"/>
+    <remap from="/semantic/labels_map" to="/semantic/raw_labels_map"/>
+  </node>
+
+  <node pkg="semantic_segmentation_go2" type="dynamic_semantic_remap.py"
+        name="go2_dynamic_semantic_remap" output="screen">
+    <param name="dynamic_label" value="6"/>
+    <rosparam param="dynamic_rgb">[255, 0, 255]</rosparam>
+    <rosparam param="dynamic_source_labels">[6]</rosparam>
+  </node>
+
+  <rosparam file="$(find semantic_segmentation_go2)/config/label_colors_go2.yaml" command="load"/>
+
+  <node pkg="semantic_segmentation_go2" type="dynamic_tf_go2.py"
+        name="go2_dynamic_tf_broadcaster" output="screen">
+    <param name="pose_topic" value="/model/$(arg model_name)/pose"/>
+    <param name="parent_frame" value="world"/>
+    <param name="child_frame" value="$(arg base_frame)"/>
+  </node>
+
+  <!-- Both simulated cameras use the same SDF camera_mount frame. This node
+       reads that one extrinsic and makes it available to ROS consumers. -->
+  <node pkg="semantic_segmentation_go2" type="sdf_sensor_tf.py"
+        name="go2_camera_tf_broadcaster" output="screen">
+    <param name="model_file"
+           value="$(find semantic_segmentation_go2)/models/$(arg model_name)/model.sdf"/>
+    <param name="link_name" value="base"/>
+    <param name="frame_name" value="camera_mount"/>
+    <param name="parent_frame" value="$(arg base_frame)"/>
+    <param name="camera_frame" value="rgbd_camera_link"/>
+    <param name="optical_frame" value="rgbd_camera_optical_frame"/>
+  </node>
+
+  <!-- Pure effort control must start with the simulated robot; otherwise
+       gravity acts before the stance PD adapter is available. -->
+  <include if="$(arg start_control)"
+           file="$(find semantic_segmentation_go2)/launch/go2_rl_control.launch">
+    <arg name="model_name" value="$(arg model_name)"/>
+    <arg name="robot_name" value="go2"/>
+    <arg name="start_keyboard" value="false"/>
+  </include>
+
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="go2_rviz"
+        args="-d $(find semantic_segmentation_go2)/rviz/octomap_cam_go2.rviz"/>
+</launch>

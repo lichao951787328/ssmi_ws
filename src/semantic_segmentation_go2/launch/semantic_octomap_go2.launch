@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+  <rosparam file="$(find semantic_segmentation_go2)/config/semantic_cloud_go2.yaml" command="load"/>
+  <node pkg="semantic_octomap" type="semantic_sensor_node.py"
+        name="semantic_cloud" output="screen">
+    <param name="agent_name" value=""/>
+  </node>
+
+  <rosparam file="$(find semantic_segmentation_go2)/config/octomap_generator_go2.yaml" command="load"/>
+  <node pkg="semantic_octomap" type="semantic_octomap_node"
+        name="semantic_octomap" output="screen"/>
+</launch>

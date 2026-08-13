@@ -1,0 +1,43 @@
+octomap:
+    pointcloud_topic: "/semantic_pcl/semantic_pcl"
+    world_frame_id: "world"
+    resolution: 0.4
+    max_range: 15.0
+    raycast_range: 15.0
+    clamping_thres_min: 0.0001
+    clamping_thres_max: 0.99
+    occupancy_thres: 0.5
+    prob_hit: 0.7
+    prob_miss: 0.4
+    # Only after a normal ray in the current scan has observed a previous
+    # dynamic endpoint as free, apply this many additional free updates.
+    # Upper bound for normal free-probability updates before a ray-confirmed
+    # old dynamic voxel is forced to the explicit free state.
+    dynamic_free_updates: 64
+    # At 10 Hz, one ray-confirmed free observation gives about 0.1 s response.
+    dynamic_free_confirmations: 1
+    psi: 1
+    phi: -0.1
+    publish_2d_map: true
+    min_ground_z: 1
+    max_ground_z: 3.5
+    # Seed the sensor blind spot under the robot after the first valid TF.
+    # The patch follows the initial base_link roll, pitch and yaw, so it can
+    # represent a locally planar slope. Existing observations are not replaced.
+    initialize_floor: true
+    initial_floor:
+        robot_frame_id: "base_link"
+        length: 1.2
+        width: 0.8
+        offset_x: 0.0
+        offset_y: 0.0
+        # Husky collision geometry: wheel radius 0.1651 m minus the
+        # wheel-center height 0.03282 m relative to base_link.
+        base_to_ground: 0.13228
+        clear_above_floor: true
+        clear_height: 1.0
+        # Reuse label 0 (background/unlabeled) for floor semantics.
+        semantic_rgb: [0, 0, 0]
+        # RGB used when the octomap is switched to non-semantic color mode.
+        rgb: [204, 204, 204]
+    save_path: /address/to/save/map.ot
