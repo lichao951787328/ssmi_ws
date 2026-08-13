@@ -34,6 +34,16 @@ class SemanticExplorationAgent:
 
         self.planning_angles = get_astar_angles()
         self.planning_epsilon = rospy.get_param('/planning/planning_epsilon')
+        self.use_traversability = rospy.get_param(
+            '/planning/traversability/enabled', True)
+        self.traversability_hard_threshold = rospy.get_param(
+            '/planning/traversability/hard_threshold', 0.65)
+        self.traversability_soft_weight = rospy.get_param(
+            '/planning/traversability/soft_weight', 2.0)
+        self.traversability_unknown_cost = rospy.get_param(
+            '/planning/traversability/unknown_cost', 0.5)
+        self.traversability_max_msg = None
+        self.traversability_mean_msg = None
 
         footprint_type = rospy.get_param('/planning/footprint/type')
 
@@ -123,6 +133,13 @@ class SemanticExplorationAgent:
         self.sensor_height = 1 # TODO: Should be read from the sensor extrinsics
         
         time.sleep(1)
+        if self.use_traversability:
+            self.traversability_max_sub = rospy.Subscriber(
+                'traversability_map_2D', OccupancyGrid,
+                self.traversability_max_callback, queue_size=1)
+            self.traversability_mean_sub = rospy.Subscriber(
+                'traversability_mean_map_2D', OccupancyGrid,
+                self.traversability_mean_callback, queue_size=1)
         self.map_sub = message_filters.Subscriber('occupancy_map_2D', OccupancyGrid, queue_size = 1)
         self.map_sub.registerCallback(self.map_callback)
         
@@ -133,6 +150,37 @@ class SemanticExplorationAgent:
             print("RLE Service initialization failed: %s"%e)
         
         print('Semantic exploration agent initialized!')
+
+    def traversability_max_callback(self, map_msg):
+        self.traversability_max_msg = map_msg
+
+    def traversability_mean_callback(self, map_msg):
+        self.traversability_mean_msg = map_msg
+
+    def traversability_array(self, map_msg, occupancy_msg):
+        if map_msg is None:
+            return None
+        same_geometry = (
+            map_msg.info.width == occupancy_msg.info.width and
+            map_msg.info.height == occupancy_msg.info.height and
+            abs(map_msg.info.resolution - occupancy_msg.info.resolution) < 1e-6 and
+            abs(map_msg.info.origin.position.x -
+                occupancy_msg.info.origin.position.x) < 1e-6 and
+            abs(map_msg.info.origin.position.y -
+                occupancy_msg.info.origin.position.y) < 1e-6)
+        if not same_geometry:
+            rospy.logwarn_throttle(
+                2.0, 'Ignoring traversability grid: geometry does not match occupancy_map_2D')
+            return None
+
+        encoded = np.asarray(map_msg.data, dtype=np.int16).reshape(
+            (map_msg.info.height, map_msg.info.width))
+        encoded = np.flipud(encoded)
+        costs = np.full(encoded.shape, self.traversability_unknown_cost,
+                        dtype=np.float32)
+        valid = encoded >= 0
+        costs[valid] = np.clip(encoded[valid], 0, 100) / 100.0
+        return costs
 
     def transform_matrix_2d(self, p_1, p_2, theta):
         return np.array([[np.cos(theta), -1 * np.sin(theta), 0, p_1],
@@ -165,23 +213,41 @@ class SemanticExplorationAgent:
         resolution = occ_map_msg.info.resolution
 
         exploration_map = Costmap(occupancy_map, resolution, origin)
+
+        traversability_cost_map = None
+        if self.use_traversability:
+            maximum_cost_map = self.traversability_array(
+                self.traversability_max_msg, occ_map_msg)
+            mean_cost_map = self.traversability_array(
+                self.traversability_mean_msg, occ_map_msg)
+            if maximum_cost_map is not None:
+                exploration_map.data[
+                    maximum_cost_map >= self.traversability_hard_threshold
+                ] = Costmap.OCCUPIED
+                traversability_cost_map = (
+                    mean_cost_map if mean_cost_map is not None else maximum_cost_map)
+            else:
+                rospy.logwarn_throttle(
+                    2.0, 'Waiting for an aligned traversability_map_2D; planning without traversal cost')
         
         if self.path_rc is not None:
-	          collision_ahead = np.any(exploration_map.data[self.path_rc[:, 0], self.path_rc[:, 1]] == Costmap.OCCUPIED)
-	          if collision_ahead:
-	              print("WARNING: Collision Ahead!")
-	              collision_msg = Bool()
-	              collision_msg.data = True
-	              self.collision_pub.publish(collision_msg)
-	              robot_pose = self.get_pose_from_tf(self.robot_frame_id)
-	              self.path_rc = xy_to_rc(robot_pose, exploration_map)[None, :2].astype(int)
-	              self.goal = robot_pose
-	              self.publish_path(robot_pose)
-	              time.sleep(2)
+            collision_ahead = np.any(
+                exploration_map.data[self.path_rc[:, 0], self.path_rc[:, 1]] ==
+                Costmap.OCCUPIED)
+            if collision_ahead:
+                print("WARNING: Collision Ahead!")
+                collision_msg = Bool()
+                collision_msg.data = True
+                self.collision_pub.publish(collision_msg)
+                robot_pose = self.get_pose_from_tf(self.robot_frame_id)
+                self.path_rc = xy_to_rc(robot_pose, exploration_map)[None, :2].astype(int)
+                self.goal = robot_pose
+                self.publish_path(robot_pose)
+                time.sleep(2)
         
         if self.check_ready():
             print('Planning started!')
-            self.plan(exploration_map)
+            self.plan(exploration_map, traversability_cost_map)
     
     def check_ready(self):
         if self.goal is None:
@@ -217,7 +283,7 @@ class SemanticExplorationAgent:
 
         return frontier_goals
     
-    def plan(self, exploration_map):
+    def plan(self, exploration_map, traversability_cost_map=None):
         
         exploration_map = cleanup_map_for_planning(occupancy_map=exploration_map, kernel=self.kernel, filter_obstacles=False)
         
@@ -242,7 +308,9 @@ class SemanticExplorationAgent:
                                                     obstacle_values=[Costmap.OCCUPIED, Costmap.UNEXPLORED],
                                                     epsilon=self.planning_epsilon,
                                                     goal=f,
-                                                    delta=self.footprint_mask_radius)
+                                                    delta=self.footprint_mask_radius,
+                                                    traversability_map=traversability_cost_map,
+                                                    traversability_weight=self.traversability_soft_weight)
                 if plan_success and np.sum(np.linalg.norm(path[1:, :2] - path[:-1, :2], axis=1)) > 0.2:
                     path_list.append(path)
                     path_score_list.append(self.compute_path_score(path))
@@ -253,7 +321,8 @@ class SemanticExplorationAgent:
         best_path = None
         if len(path_list) == 0:
             print('Planning failed! Computing a failsafe path.')
-            best_path = self.get_failsafe_path(robot_pose, exploration_map)
+            best_path = self.get_failsafe_path(
+                robot_pose, exploration_map, traversability_cost_map)
         else:
             best_path = path_list[path_score_list.index(min(path_score_list))]           
 
@@ -319,7 +388,8 @@ class SemanticExplorationAgent:
         
         rospy.loginfo("New path published!")
     
-    def get_failsafe_path(self, state, occupancy_map):
+    def get_failsafe_path(self, state, occupancy_map,
+                          traversability_cost_map=None):
         path = None
         random_goal, sample_success = self.sample_free_pose(state, occupancy_map)
         if sample_success:
@@ -330,7 +400,9 @@ class SemanticExplorationAgent:
                                                        obstacle_values=[Costmap.OCCUPIED],
                                                        epsilon=self.planning_epsilon,
                                                        goal=random_goal,
-                                                       delta=self.footprint_mask_radius)
+                                                       delta=self.footprint_mask_radius,
+                                                       traversability_map=traversability_cost_map,
+                                                       traversability_weight=self.traversability_soft_weight)
         
             if plan_success and random_path.shape[0] > 1:
                 path = random_path
@@ -554,4 +626,3 @@ def main(args):
 
 if __name__ == '__main__':
     main(sys.argv)
-

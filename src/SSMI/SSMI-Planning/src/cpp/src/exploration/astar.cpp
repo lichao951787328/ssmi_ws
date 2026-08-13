@@ -9,6 +9,8 @@ PlanningResult astar(pybind11::safe_array<int, 1> start,
                      pybind11::safe_array<int, 1> goal,
                      pybind11::safe_array<uint8_t, 2> occupancy_map,
                      pybind11::safe_array<uint8_t, 1> obstacle_values,
+                     pybind11::safe_array<float, 2> traversability_map,
+                     float traversability_weight,
                      float delta,
                      float epsilon,
                      int planning_scale,
@@ -40,6 +42,11 @@ PlanningResult astar(pybind11::safe_array<int, 1> start,
   const float inf = std::numeric_limits<float>::infinity();
 
   int map_shape[2] = {(int) occupancy_map.shape()[0] , (int) occupancy_map.shape()[1]};
+  if (traversability_map.shape()[0] != occupancy_map.shape()[0] ||
+      traversability_map.shape()[1] != occupancy_map.shape()[1]) {
+    throw std::logic_error("ERROR: traversability_map shape must match occupancy_map");
+  }
+  traversability_weight = std::max(0.0f, traversability_weight);
   const int start_idx = index_2d_to_1d(&start(0), map_shape);
 
   for(int i = 0; i < obstacle_values.shape()[0]; i++){
@@ -117,7 +124,12 @@ PlanningResult astar(pybind11::safe_array<int, 1> start,
         continue;
       }
 
-      float g = costs[parent.idx] + euclidean(parent_coord, children[c]);
+      const float distance = euclidean(parent_coord, children[c]);
+      const float traversal_cost = std::max(
+          0.0f, std::min(1.0f,
+                         traversability_map(children[c][0], children[c][1])));
+      float g = costs[parent.idx] +
+                distance * (1.0f + traversability_weight * traversal_cost);
 
       int child_idx = index_2d_to_1d(children[c], map_shape);
       if (costs[child_idx] > g) {
@@ -181,6 +193,8 @@ OrientedPlanningResult oriented_astar(pybind11::safe_array<int, 1> start,
                                       pybind11::safe_array<float, 1> mask_angles,
                                       std::vector<pybind11::safe_array_mut<int, 2> > outline_coords,
                                       pybind11::safe_array<uint8_t, 1> obstacle_values,
+                                      pybind11::safe_array<float, 2> traversability_map,
+                                      float traversability_weight,
                                       const float delta,
                                       const float epsilon,
                                       const int planning_scale,
@@ -235,6 +249,11 @@ OrientedPlanningResult oriented_astar(pybind11::safe_array<int, 1> start,
   }
 
   int map_shape[2] = {(int) occupancy_map.shape()[0] , (int) occupancy_map.shape()[1]};
+  if (traversability_map.shape()[0] != occupancy_map.shape()[0] ||
+      traversability_map.shape()[1] != occupancy_map.shape()[1]) {
+    throw std::logic_error("ERROR: traversability_map shape must match occupancy_map");
+  }
+  traversability_weight = std::max(0.0f, traversability_weight);
   const int start_idx = index_2d_to_1d(&start(0), map_shape);
 
   Node start_node = Node(0.0, start_idx);
@@ -321,7 +340,12 @@ OrientedPlanningResult oriented_astar(pybind11::safe_array<int, 1> start,
         continue;
       }
 
-      float g = costs[parent.idx] + euclidean(parent_coord, children[c]);
+      const float distance = euclidean(parent_coord, children[c]);
+      const float traversal_cost = std::max(
+          0.0f, std::min(1.0f,
+                         traversability_map(children[c][0], children[c][1])));
+      float g = costs[parent.idx] +
+                distance * (1.0f + traversability_weight * traversal_cost);
 
       int child_idx = index_2d_to_1d(children[c], map_shape);
       if (costs[child_idx] > g) {

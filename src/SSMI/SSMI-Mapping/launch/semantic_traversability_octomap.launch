@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="input_topic" default="/grids_points"/>
+  <arg name="world_frame_id" default="world"/>
+  <arg name="resolution" default="0.2"/>
+  <arg name="load_path" default=""/>
+  <arg name="save_path" default="/tmp/semantic_traversability_map.ot"/>
+
+  <rosparam file="$(find semantic_octomap)/params/semantic_traversability_octomap.yaml"
+            command="load"/>
+
+  <node pkg="semantic_octomap" type="semantic_traversability_octomap_node"
+        name="semantic_traversability_octomap" output="screen">
+    <param name="input_topic" value="$(arg input_topic)"/>
+    <param name="world_frame_id" value="$(arg world_frame_id)"/>
+    <param name="resolution" value="$(arg resolution)"/>
+    <param name="load_path" value="$(arg load_path)"/>
+    <param name="save_path" value="$(arg save_path)"/>
+  </node>
+</launch>

@@ -1,0 +1,40 @@
+semantic_traversability_octomap:
+    input_topic: /grids_points
+    world_frame_id: world
+    resolution: 0.2
+    max_range: 15.0
+
+    clamping_thres_min: 0.0001
+    clamping_thres_max: 0.99
+    occupancy_thres: 0.5
+    prob_hit: 0.7
+    prob_miss: 0.4
+
+    semantic_phi: -0.1
+    semantic_psi: 1.0
+
+    traversability_rise_alpha: 0.70
+    traversability_fall_alpha: 0.15
+    traversability_merge_epsilon: 0.05
+    confidence_merge_epsilon: 0.10
+    observation_confidence: 1.0
+    invalid_semantic_label: -1
+
+    # The current /grids_points input is an already-fused local grid. Only
+    # occupied endpoints are inserted; absence from the window is not free.
+    enable_pruning: true
+    publish_voxel_clouds: true
+    publish_traversability_2d: true
+    min_ground_z: -1.0
+    max_ground_z: 1.0
+
+    # Occupancy and traversability use independent vertical projection bands.
+    # The defaults preserve the original SSMI obstacle-height projection.
+    occupancy_min_z: 1.0
+    occupancy_max_z: 3.5
+
+    # Set load_path to resume a map written by this new tree type. Legacy
+    # SemanticOcTree files remain readable by the legacy node, not implicitly
+    # reinterpreted as this format.
+    load_path: ''
+    save_path: /tmp/semantic_traversability_map.ot

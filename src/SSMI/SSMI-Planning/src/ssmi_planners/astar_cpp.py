@@ -16,7 +16,9 @@ def get_astar_angles():
     return c_angles
 
 
-def astar(goal, start, occupancy_map, obstacle_values, planning_scale=1, delta=0.0, epsilon=1.0, allow_diagonal=False):
+def astar(goal, start, occupancy_map, obstacle_values, planning_scale=1,
+          delta=0.0, epsilon=1.0, allow_diagonal=False,
+          traversability_map=None, traversability_weight=0.0):
     """
     Wrapper for vanilla a-star c++ planning. given a start and end and a map, give a path.
     :param goal array(3)[float]: [x, y, theta] goal pose of the robot
@@ -30,6 +32,8 @@ def astar(goal, start, occupancy_map, obstacle_values, planning_scale=1, delta=0
                   TODO FIX this to be in meters
     :param epsilon float: weighting for the heuristic in the A* algorithm
     :param allow_diagonal bool: whether to allow diagonal movements
+    :param traversability_map array(N, M)[float32]: optional normalized soft cost map
+    :param traversability_weight float: non-negative multiplier for soft traversal cost
     :return Tuple[bool, array(N, 3)[float]]: whether we were able to successfully plan to the goal node,
                                               and the most promising path to the goal node (solution if obtained)
     """
@@ -40,11 +44,19 @@ def astar(goal, start, occupancy_map, obstacle_values, planning_scale=1, delta=0
     c_goal = np.array(goal_px[:2], dtype=np.int32)
 
     c_occupancy_map = occupancy_map.data.astype(np.uint8)
+    if traversability_map is None:
+        c_traversability_map = np.zeros(c_occupancy_map.shape, dtype=np.float32)
+    else:
+        c_traversability_map = np.asarray(traversability_map, dtype=np.float32)
+        if c_traversability_map.shape != c_occupancy_map.shape:
+            raise ValueError('traversability_map shape must match occupancy_map')
 
     success, path_px = c_astar(c_start,
                                c_goal,
                                c_occupancy_map,
                                obstacle_values,
+                               c_traversability_map,
+                               float(traversability_weight),
                                delta,
                                epsilon,
                                planning_scale,
@@ -55,7 +67,9 @@ def astar(goal, start, occupancy_map, obstacle_values, planning_scale=1, delta=0
 
 
 def oriented_astar(goal, start, occupancy_map, footprint_masks,
-                   outline_coords, obstacle_values, planning_scale=1, delta=0.0, epsilon=1.0, allow_diagonal=True):
+                   outline_coords, obstacle_values, planning_scale=1, delta=0.0,
+                   epsilon=1.0, allow_diagonal=True, traversability_map=None,
+                   traversability_weight=0.0):
     """
         Oriented Astar C++ wrapper for python. Formats input data in required format for c++ function, the calls it,
     returning the path if found.
@@ -76,6 +90,8 @@ def oriented_astar(goal, start, occupancy_map, footprint_masks,
                   TODO FIX this to be in meters
     :param epsilon float: weighting for the heuristic in the A* algorithm
     :param allow_diagonal bool: whether to allow diagonal movements
+    :param traversability_map array(N, M)[float32]: optional normalized soft cost map
+    :param traversability_weight float: non-negative multiplier for soft traversal cost
     :return Tuple[bool, array(N, 3)[float]]: whether we were able to successfully plan to the goal,
                                               and the most promising path to the goal node (solution if obtained)
     """
@@ -88,6 +104,12 @@ def oriented_astar(goal, start, occupancy_map, footprint_masks,
     c_goal = np.array(goal_px[:2], dtype=np.int32)
 
     c_occupancy_map = occupancy_map.data.astype(np.uint8)
+    if traversability_map is None:
+        c_traversability_map = np.zeros(c_occupancy_map.shape, dtype=np.float32)
+    else:
+        c_traversability_map = np.asarray(traversability_map, dtype=np.float32)
+        if c_traversability_map.shape != c_occupancy_map.shape:
+            raise ValueError('traversability_map shape must match occupancy_map')
 
     c_footprint_masks = np.logical_not(np.array(footprint_masks, dtype=bool))
     c_footprint_masks = [c_footprint_mask for c_footprint_mask in c_footprint_masks]
@@ -104,6 +126,8 @@ def oriented_astar(goal, start, occupancy_map, footprint_masks,
                                         c_angles,
                                         c_outline_coords,
                                         c_obstacle_values,
+                                        c_traversability_map,
+                                        float(traversability_weight),
                                         delta,
                                         epsilon,
                                         planning_scale,

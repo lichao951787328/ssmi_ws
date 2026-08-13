@@ -18,10 +18,15 @@ ENDIF(OCTOMAP_OMP)
 set(PACKAGE_DEPENDENCIES
   roscpp
   rospy
+  geometry_msgs
+  message_filters
+  nav_msgs
   sensor_msgs
+  std_msgs
   pcl_ros
   pcl_conversions
   std_srvs
+  tf
   octomap_msgs
 )
 
@@ -40,12 +45,18 @@ include_directories(
 
 add_message_files(
   DIRECTORY msg
-  FILES LE.msg RayRLE.msg
+  FILES
+    LE.msg
+    RayRLE.msg
+    TraversabilityLE.msg
+    TraversabilityRayRLE.msg
 )
 
 add_service_files(
   DIRECTORY srv
-  FILES GetRLE.srv
+  FILES
+    GetRLE.srv
+    GetTraversabilityRLE.srv
 )
 
 catkin_python_setup()
@@ -67,7 +78,8 @@ set(LINK_LIBS
 
 add_library(semantic_octomap SHARED
             src/semantic_octomap_node/octomap_generator.cpp
-            src/semantic_octree/Semantics.cpp)
+            src/semantic_octree/Semantics.cpp
+            src/semantic_traversability_octree/SemanticTraversabilityOcTree.cpp)
 
 add_dependencies(semantic_octomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
@@ -77,9 +89,28 @@ add_executable(semantic_octomap_node
  src/semantic_octomap_node/octomap_generator_ros.cpp
 )
 
+add_executable(semantic_traversability_octomap_node
+ src/semantic_traversability_octomap_node.cpp
+)
+
 target_link_libraries(semantic_octomap_node semantic_octomap ${LINK_LIBS})
 
+target_link_libraries(semantic_traversability_octomap_node semantic_octomap ${LINK_LIBS})
+
 add_dependencies(semantic_octomap_node semantic_octomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_dependencies(semantic_traversability_octomap_node semantic_octomap
+  ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(semantic_traversability_octree_test
+    test/semantic_traversability_octree_test.cpp)
+  if(TARGET semantic_traversability_octree_test)
+    target_link_libraries(semantic_traversability_octree_test semantic_octomap ${LINK_LIBS})
+    add_dependencies(semantic_traversability_octree_test semantic_octomap
+      ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+  endif()
+endif()
 
 install(DIRECTORY
   launch
@@ -98,7 +129,7 @@ catkin_install_python(PROGRAMS
   scripts/ssmi_sensors/semantic_sensor.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-install(TARGETS semantic_octomap_node semantic_octomap
+install(TARGETS semantic_octomap_node semantic_traversability_octomap_node semantic_octomap
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -107,6 +138,7 @@ install(TARGETS semantic_octomap_node semantic_octomap
 install(DIRECTORY
   include/semantic_octomap_node
   include/semantic_octree
+  include/semantic_traversability_octree
   include/semantic_point_cloud
   DESTINATION "${CATKIN_PACKAGE_INCLUDE_DESTINATION}/.."
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hxx"

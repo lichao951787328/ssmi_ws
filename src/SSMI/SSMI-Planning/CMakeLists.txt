@@ -40,6 +40,11 @@ target_link_libraries(exploration_cpp ${PYTHON_LIBRARIES})
 set_target_properties(exploration_cpp PROPERTIES SUFFIX ".so" PREFIX "_"
                       LIBRARY_OUTPUT_DIRECTORY ${EXPLORATION_LIB_DESTINATION})
 
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test/traversability_astar_test.py
+    DEPENDENCIES exploration_cpp)
+endif()
+
 
 install(DIRECTORY
   launch

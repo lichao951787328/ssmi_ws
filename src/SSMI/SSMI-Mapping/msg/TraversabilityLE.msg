@@ -1,0 +1,12 @@
+uint8 CURRENT_VERSION=1
+uint8 version
+
+uint32 run_length
+float64[4] semantic_log_odds
+float32 measured_traversability
+float32 max_traversability
+float32 mean_traversability
+float32 traversability_confidence
+float32 valid_fraction
+uint32 observations
+bool valid

@@ -6,6 +6,15 @@ planning:
   min_frontier_size: 20
   planning_epsilon: 1.0
   goal_check_radius: 0.5
+
+  traversability:
+    enabled: true
+    # max cost at or above this value is a hard obstacle.
+    hard_threshold: 0.65
+    # mean/leaf cost multiplies A* edge cost by (1 + weight * cost).
+    soft_weight: 2.0
+    # Unknown is distinct from measured zero and is handled explicitly.
+    unknown_cost: 0.5
   
   skip_pose: 1000
   skip_pixel: 50

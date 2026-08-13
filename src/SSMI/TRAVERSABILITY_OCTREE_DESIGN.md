@@ -525,3 +525,43 @@ free ray：只更新 occupancy，不代表地表可通行。
 格式：使用新的 Octree 类型和版本化规划接口，避免破坏旧系统。
 ```
 
+## 19. 实现状态与使用入口
+
+该设计已在 `feature/traversability-octree` 分支实现，旧
+`SemanticOcTree` 类型和序列化布局未修改。新增入口为：
+
+```bash
+roslaunch semantic_octomap semantic_traversability_octomap.launch
+```
+
+节点直接订阅 `/grids_points`，通过消息时间戳对应的 TF 转到
+`world_frame_id`，并发布：
+
+```text
+/octomap_full                         SemanticTraversabilityOcTree 完整负载
+/octomap_color                        标准 ColorOcTree 兼容负载
+/semantic_voxels                      语义颜色点云
+/traversability_voxels                可通行性颜色点云
+/semantic_traversability_voxel_cloud  数值字段点云
+/occupancy_map_2D                     占用投影
+/traversability_map_2D                max 可通行代价投影
+/traversability_mean_map_2D           mean 可通行代价投影
+```
+
+原有 `querry_RLE` 保持不变，新接口为 `query_traversability_rle`，每个
+`TraversabilityLE` 都带 `version=CURRENT_VERSION`，避免旧规划器误读。
+
+规划器参数位于 `SSMI-Planning/params/exploration_params.yaml`：
+
+```yaml
+planning:
+  traversability:
+    enabled: true
+    hard_threshold: 0.65
+    soft_weight: 2.0
+    unknown_cost: 0.5
+```
+
+规划时，max 达到硬阈值的栅格先转为碰撞障碍；其余位置使用 mean
+作为 A* 的连续边代价。若没有收到与占用图几何对齐的可通行地图，则
+自动退回原有仅占用规划行为。
