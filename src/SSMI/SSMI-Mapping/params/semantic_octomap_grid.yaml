@@ -1,0 +1,48 @@
+grid_semantic_adapter:
+    input_topic: /grids_points
+    output_topic: /semantic_pcl/semantic_pcl
+    obstacle_threshold: 0.6
+    # ROS1 XmlRpc integers are signed 32-bit. -1 converts to UINT32_MAX.
+    invalid_semantic_label: -1
+    traversable_labels: [0, 1, 9]
+    existing_obstacle_labels: [2, 3, 4, 5, 6, 7, 8]
+    dynamic_labels: [11, 12, 13, 14, 15, 16, 17, 18]
+    fallback_obstacle_label: 3
+    dynamic_rgb: [255, 0, 255]
+    # White is the existing SSMI sentinel for an unset semantic class.
+    unknown_rgb: [255, 255, 255]
+
+octomap:
+    pointcloud_topic: /semantic_pcl/semantic_pcl
+    world_frame_id: world
+    resolution: 0.4
+    max_range: 15.0
+    raycast_range: 15.0
+    clamping_thres_min: 0.0001
+    clamping_thres_max: 0.99
+    occupancy_thres: 0.5
+    prob_hit: 0.7
+    prob_miss: 0.4
+    dynamic_free_updates: 64
+    dynamic_free_confirmations: 1
+    psi: 1
+    phi: -0.1
+    publish_2d_map: true
+    min_ground_z: 1.0
+    max_ground_z: 3.5
+    initialize_floor: false
+
+    # /grids_points is an already-fused local grid, not a raw sensor scan.
+    input_mode: local_grid
+    enable_raycast_clearing: false
+
+    # Flat RGB triples for Cityscapes labels 2..8. These colors take priority
+    # over ordinary semantics when several samples share one OctoMap voxel.
+    obstacle_semantic_colors: [70, 70, 70,
+                               102, 102, 156,
+                               190, 153, 153,
+                               153, 153, 153,
+                               250, 170, 30,
+                               220, 220, 0,
+                               107, 142, 35]
+    save_path: /tmp/semantic_grid_map.ot

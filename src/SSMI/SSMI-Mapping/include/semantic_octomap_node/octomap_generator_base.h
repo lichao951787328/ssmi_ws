@@ -3,6 +3,8 @@
 
 #include <octomap/octomap.h>
 #include <semantic_octomap/RayRLE.h>
+#include <cstdint>
+#include <vector>
 
 template<class OCTREE>
 class OctomapGeneratorBase
@@ -17,6 +19,12 @@ public:
 
     /// Set max range to perform raycasting on inserted points
     virtual void setRayCastRange(float raycast_range) = 0;
+
+    /// Enable free-space ray casting. Disable for already-fused local grids.
+    virtual void setRaycastClearingEnabled(bool enabled) = 0;
+
+    /// Semantic packed RGB values that outrank ordinary samples in a voxel.
+    virtual void setObstacleSemanticColors(const std::vector<uint32_t>& colors) = 0;
 
     /// Extra free updates for a previously dynamic voxel only after the
     /// current scan has independently observed that voxel as free.

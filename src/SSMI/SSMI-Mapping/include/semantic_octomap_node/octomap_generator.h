@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <unordered_map>
+#include <unordered_set>
 
 typedef pcl::PointCloud<PointXYZRGBSemantic> PCLSemantics;
 typedef octomap::SemanticOcTree<octomap::SemanticsLogOdds> SemanticOctree;
@@ -30,6 +31,18 @@ public:
     virtual void setMaxRange(float max_range){max_range_ = max_range;}
 
     virtual void setRayCastRange(float raycast_range){raycast_range_ = raycast_range;}
+
+    virtual void setRaycastClearingEnabled(bool enabled)
+    {
+        raycast_clearing_enabled_ = enabled;
+    }
+
+    virtual void setObstacleSemanticColors(const std::vector<uint32_t>& colors)
+    {
+        obstacle_semantic_colors_.clear();
+        for (uint32_t color : colors)
+            obstacle_semantic_colors_.insert(color & 0x00ffffffu);
+    }
 
     virtual void setDynamicFreeUpdates(int updates)
     {
@@ -113,8 +126,10 @@ protected:
     OCTREE octomap_; ///<Templated octree instance
     float max_range_; ///<Max range for points to be inserted into octomap
     float raycast_range_; ///<Max range for points to perform raycasting to free unoccupied space
+    bool raycast_clearing_enabled_; ///<Whether inserted endpoints also clear free rays
     int dynamic_free_updates_; ///<Maximum same-frame updates for confirmed-free old dynamic voxels
     int dynamic_free_confirmations_; ///<Required consecutive free observations
+    std::unordered_set<uint32_t> obstacle_semantic_colors_; ///<Static obstacle colors with voxel selection priority
     std::unordered_map<uint64_t, octomap::OcTreeKey> previous_dynamic_keys_; ///<Dynamic endpoints in the previous scan
     std::unordered_map<uint64_t, int> dynamic_free_confirmation_counts_; ///<Consecutive free evidence per dynamic voxel
 

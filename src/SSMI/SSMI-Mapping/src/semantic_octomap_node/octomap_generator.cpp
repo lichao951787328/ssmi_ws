@@ -10,6 +10,7 @@
 template<class CLOUD, class OCTREE>
 OctomapGenerator<CLOUD, OCTREE>::OctomapGenerator()
     : octomap_(0.05), max_range_(1.), raycast_range_(1.),
+      raycast_clearing_enabled_(true),
       dynamic_free_updates_(64), dynamic_free_confirmations_(1) {}
 
 template<class CLOUD, class OCTREE>
@@ -70,6 +71,13 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
                ((bits >> 8) & 0xff) == dynamic_color.g &&
                (bits & 0xff) == dynamic_color.b;
     };
+    const auto semanticPriority = [this, &isDynamic, &semanticBits](
+                                      const typename CLOUD::PointType& point) {
+        if (isDynamic(point))
+            return 2;
+        return obstacle_semantic_colors_.count(semanticBits(point) & 0x00ffffffu) != 0
+                   ? 1 : 0;
+    };
     const auto packKey = [](const octomap::OcTreeKey& key) {
         return (static_cast<uint64_t>(key[0]) << 32) |
                (static_cast<uint64_t>(key[1]) << 16) |
@@ -104,12 +112,13 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
         }
 
         const size_t index = existing->second;
-        const bool incoming_dynamic = isDynamic(*it);
-        const bool selected_dynamic = isDynamic(pcl_cloud[index]);
-        // Dynamic detections are authoritative within a mixed voxel. Within
-        // the same dynamic/static group retain the nearest original sample.
-        if ((incoming_dynamic && !selected_dynamic) ||
-            (incoming_dynamic == selected_dynamic &&
+        const int incoming_priority = semanticPriority(*it);
+        const int selected_priority = semanticPriority(pcl_cloud[index]);
+        // Dynamic detections outrank static obstacles, and static obstacles
+        // outrank ordinary semantics. Within one group retain the nearest
+        // original sample so categorical packed RGB fields are never averaged.
+        if ((incoming_priority > selected_priority) ||
+            (incoming_priority == selected_priority &&
              distance_sq < selected_distance_sq[index]))
         {
             pcl_cloud[index] = *it;
@@ -178,9 +187,21 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
                 endpoint_count++;
             }
             
-            raycast_cloud.push_back(it->x, it->y, it->z);
+            if (raycast_clearing_enabled_)
+                raycast_cloud.push_back(it->x, it->y, it->z);
         }
     }
+
+    // A local grid has already been fused upstream and does not encode a
+    // sensor line of sight for every cell. Its points are occupied endpoints
+    // only; absence from the moving local window is not free-space evidence.
+    if (!raycast_clearing_enabled_)
+    {
+        previous_dynamic_keys_.clear();
+        dynamic_free_confirmation_counts_.clear();
+        return;
+    }
+
     // Remember old dynamic nodes before the normal free-space update. A
     // decrease afterwards proves that the current scan actually traversed
     // the voxel; occluded old positions are deliberately left untouched.

@@ -77,9 +77,27 @@ add_executable(semantic_octomap_node
  src/semantic_octomap_node/octomap_generator_ros.cpp
 )
 
+add_executable(grid_semantic_adapter_node
+ src/grid_semantic_adapter_node.cpp
+)
+
 target_link_libraries(semantic_octomap_node semantic_octomap ${LINK_LIBS})
 
+target_link_libraries(grid_semantic_adapter_node ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_dependencies(semantic_octomap_node semantic_octomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_dependencies(grid_semantic_adapter_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(grid_semantic_octomap_test
+    test/grid_semantic_octomap_test.cpp)
+  if(TARGET grid_semantic_octomap_test)
+    target_link_libraries(grid_semantic_octomap_test semantic_octomap ${LINK_LIBS})
+    add_dependencies(grid_semantic_octomap_test semantic_octomap
+      ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+  endif()
+endif()
 
 install(DIRECTORY
   launch
@@ -98,7 +116,7 @@ catkin_install_python(PROGRAMS
   scripts/ssmi_sensors/semantic_sensor.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-install(TARGETS semantic_octomap_node semantic_octomap
+install(TARGETS semantic_octomap_node grid_semantic_adapter_node semantic_octomap
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

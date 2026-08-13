@@ -66,6 +66,9 @@ protected:
     std::string pointcloud_topic_; ///<Topic name for subscribed pointcloud message
     float max_range_; ///<Max range for points to be inserted into octomap
     float raycast_range_; ///<Max range for points to perform raycasting to free unoccupied space
+    std::string input_mode_; ///<Raw sensor scan or already-fused local grid
+    bool enable_raycast_clearing_; ///<Whether endpoint insertion clears sensor rays
+    std::vector<int> obstacle_semantic_rgb_values_; ///<Flat RGB triples with voxel priority
     float clamping_thres_max_; ///<Upper bound of occupancy probability for a node
     float clamping_thres_min_; ///<Lower bound of occupancy probability for a node
     float psi_; ///<Increment update value for a semantic class

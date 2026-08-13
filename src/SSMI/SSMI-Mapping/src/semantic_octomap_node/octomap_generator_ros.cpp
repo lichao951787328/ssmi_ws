@@ -41,6 +41,16 @@ void OctomapGeneratorNode::reset()
     nh_.getParam("/octomap/resolution", resolution_);
     nh_.getParam("/octomap/max_range", max_range_);
     nh_.getParam("/octomap/raycast_range", raycast_range_);
+    nh_.param<std::string>("/octomap/input_mode", input_mode_, "sensor");
+    const bool default_raycast_clearing = input_mode_ != "local_grid";
+    nh_.param("/octomap/enable_raycast_clearing", enable_raycast_clearing_,
+              default_raycast_clearing);
+    if (!nh_.getParam("/octomap/obstacle_semantic_colors", obstacle_semantic_rgb_values_))
+    {
+        obstacle_semantic_rgb_values_ = {
+            70, 70, 70, 102, 102, 156, 190, 153, 153, 153, 153, 153,
+            250, 170, 30, 220, 220, 0, 107, 142, 35};
+    }
     nh_.getParam("/octomap/clamping_thres_min", clamping_thres_min_);
     nh_.getParam("/octomap/clamping_thres_max", clamping_thres_max_);
     nh_.getParam("/octomap/occupancy_thres", occupancy_thres_);
@@ -78,6 +88,29 @@ void OctomapGeneratorNode::reset()
         initial_floor_rgb_ = std::vector<int>{204, 204, 204};
     }
     floor_initialized_ = false;
+    std::vector<uint32_t> obstacle_semantic_colors;
+    if (obstacle_semantic_rgb_values_.size() % 3 != 0)
+    {
+        ROS_WARN("/octomap/obstacle_semantic_colors must be a flat list of RGB triples; ignoring it");
+    }
+    else
+    {
+        for (size_t i = 0; i < obstacle_semantic_rgb_values_.size(); i += 3)
+        {
+            const int r = obstacle_semantic_rgb_values_[i];
+            const int g = obstacle_semantic_rgb_values_[i + 1];
+            const int b = obstacle_semantic_rgb_values_[i + 2];
+            if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
+            {
+                ROS_WARN("Ignoring out-of-range RGB triple in /octomap/obstacle_semantic_colors");
+                continue;
+            }
+            obstacle_semantic_colors.push_back(
+                (static_cast<uint32_t>(r) << 16) |
+                (static_cast<uint32_t>(g) << 8) |
+                static_cast<uint32_t>(b));
+        }
+    }
     octomap_generator_->setClampingThresMin(clamping_thres_min_);
     octomap_generator_->setClampingThresMax(clamping_thres_max_);
     octomap_generator_->setResolution(resolution_);
@@ -86,10 +119,21 @@ void OctomapGeneratorNode::reset()
     octomap_generator_->setProbMiss(prob_miss_);
     octomap_generator_->setDynamicFreeUpdates(dynamic_free_updates_);
     octomap_generator_->setDynamicFreeConfirmations(dynamic_free_confirmations_);
+    octomap_generator_->setRaycastClearingEnabled(enable_raycast_clearing_);
+    octomap_generator_->setObstacleSemanticColors(obstacle_semantic_colors);
     octomap_generator_->setPsi(psi_);
     octomap_generator_->setPhi(phi_);
     octomap_generator_->setRayCastRange(raycast_range_);
     octomap_generator_->setMaxRange(max_range_);
+
+    if (input_mode_ != "sensor" && input_mode_ != "local_grid")
+        ROS_WARN_STREAM("Unknown /octomap/input_mode '" << input_mode_
+                        << "'; only raycast setting changes behavior");
+    if (input_mode_ == "local_grid" && enable_raycast_clearing_)
+        ROS_WARN("Raycast clearing is enabled for local_grid input; this can clear occluded map cells");
+    ROS_INFO_STREAM("OctoMap input_mode=" << input_mode_
+                    << ", raycast clearing="
+                    << (enable_raycast_clearing_ ? "enabled" : "disabled"));
 }
 
 bool OctomapGeneratorNode::resetMap(std_srvs::Empty::Request&, std_srvs::Empty::Response&)
