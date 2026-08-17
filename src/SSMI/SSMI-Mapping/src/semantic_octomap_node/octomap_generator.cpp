@@ -73,10 +73,9 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
     };
     const auto semanticPriority = [this, &isDynamic, &semanticBits](
                                       const typename CLOUD::PointType& point) {
-        if (isDynamic(point))
+        if (obstacle_semantic_colors_.count(semanticBits(point) & 0x00ffffffu) != 0)
             return 2;
-        return obstacle_semantic_colors_.count(semanticBits(point) & 0x00ffffffu) != 0
-                   ? 1 : 0;
+        return isDynamic(point) ? 1 : 0;
     };
     const auto packKey = [](const octomap::OcTreeKey& key) {
         return (static_cast<uint64_t>(key[0]) << 32) |
@@ -114,9 +113,9 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
         const size_t index = existing->second;
         const int incoming_priority = semanticPriority(*it);
         const int selected_priority = semanticPriority(pcl_cloud[index]);
-        // Dynamic detections outrank static obstacles, and static obstacles
-        // outrank ordinary semantics. Within one group retain the nearest
-        // original sample so categorical packed RGB fields are never averaged.
+        // Confirmed static obstacles outrank dynamic occluders, and dynamic
+        // detections outrank ordinary semantics. Within one group retain the
+        // nearest sample so categorical packed RGB fields are never averaged.
         if ((incoming_priority > selected_priority) ||
             (incoming_priority == selected_priority &&
              distance_sq < selected_distance_sq[index]))
@@ -150,14 +149,35 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
                 class_obs.g = (rgb >> 8)  & 0x0000ff;
                 class_obs.b = (rgb)       & 0x0000ff;
             
-                SemanticsOcTreeNode* node = octomap_.updateNode(
-                    it->x, it->y, it->z, true, class_obs, color_obs, false);
-
                 octomap::OcTreeKey occupied_key;
                 const bool has_occupied_key = octomap_.coordToKeyChecked(
                     it->x, it->y, it->z, occupied_key);
+                SemanticsOcTreeNode* existing_node = has_occupied_key
+                    ? octomap_.search(occupied_key) : NULL;
+                bool dynamic_occludes_static = false;
+                if (class_obs == dynamic_color && existing_node != NULL &&
+                    existing_node->isSemanticsSet())
+                {
+                    const octomap::ColorOcTreeNode::Color existing_semantic =
+                        existing_node->getSemantics().data[0].color;
+                    const uint32_t existing_bits =
+                        (static_cast<uint32_t>(existing_semantic.r) << 16) |
+                        (static_cast<uint32_t>(existing_semantic.g) << 8) |
+                        static_cast<uint32_t>(existing_semantic.b);
+                    dynamic_occludes_static =
+                        obstacle_semantic_colors_.count(existing_bits) != 0;
+                }
 
-                if (node != NULL && class_obs == dynamic_color)
+                // A dynamic return at an already-confirmed wall is occlusion,
+                // not evidence that the wall disappeared. Keep the old static
+                // endpoint and let a later explicit free/terrain policy decide
+                // whether it may ever be cleared or reclassified.
+                SemanticsOcTreeNode* node = dynamic_occludes_static
+                    ? existing_node
+                    : octomap_.updateNode(
+                        it->x, it->y, it->z, true, class_obs, color_obs, false);
+
+                if (!dynamic_occludes_static && node != NULL && class_obs == dynamic_color)
                 {
                     // A current dynamic detection is authoritative for this
                     // occupied voxel. Replace (do not average) both colors and

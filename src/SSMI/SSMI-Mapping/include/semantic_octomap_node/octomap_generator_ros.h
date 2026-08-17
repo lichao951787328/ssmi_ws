@@ -16,6 +16,7 @@
 #include <tf/message_filter.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <message_filters/subscriber.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <octomap_msgs/Octomap.h>
@@ -59,6 +60,8 @@ protected:
     const std::string& mapFrameId() const;
     void captureInitialCloudReference(const tf::StampedTransform& sensor_to_world,
                                       const std_msgs::Header& cloud_header);
+    void transformFailureCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud,
+                                  tf::FilterFailureReason reason);
     ros::NodeHandle nh_; ///<ROS handler
     ros::Publisher fullmap_pub_; ///<ROS publisher for full octomap message
     ros::Publisher colormap_pub_; ///<ROS publisher for color octomap message
@@ -67,6 +70,7 @@ protected:
     tf::MessageFilter<sensor_msgs::PointCloud2>* tf_pointcloud_sub_; ///<ROS tf message filter to sychronize the tf and pointcloud messages
     tf::TransformListener tf_listener_; ///<Listener for the transform between the camera and the world coordinates
     tf2_ros::StaticTransformBroadcaster reference_tf_broadcaster_;
+    uint64_t tf_failure_count_; ///<Cumulative clouds rejected for unavailable/invalid TF
     std::string world_frame_id_; ///<Id of the world frame
     std::string reference_frame_id_; ///<Map frame whose origin is the first usable cloud pose
     std::string pointcloud_topic_; ///<Topic name for subscribed pointcloud message

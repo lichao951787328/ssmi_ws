@@ -11,7 +11,8 @@
 #include <cstring> // For std::memcpy
 #include <stdexcept>
 
-OctomapGeneratorNode::OctomapGeneratorNode(ros::NodeHandle& nh): octomap_generator_(NULL), nh_(nh), floor_initialized_(false)
+OctomapGeneratorNode::OctomapGeneratorNode(ros::NodeHandle& nh)
+    : octomap_generator_(NULL), nh_(nh), tf_failure_count_(0), floor_initialized_(false)
 {
     // Initiate octree
     ROS_INFO("Semantic octomap generated!");
@@ -26,6 +27,8 @@ OctomapGeneratorNode::OctomapGeneratorNode(ros::NodeHandle& nh): octomap_generat
     pointcloud_sub_ = new message_filters::Subscriber<sensor_msgs::PointCloud2> (nh_, pointcloud_topic_, 5);
     tf_pointcloud_sub_ = new tf::MessageFilter<sensor_msgs::PointCloud2> (*pointcloud_sub_, tf_listener_, world_frame_id_, 5);
     tf_pointcloud_sub_->registerCallback(boost::bind(&OctomapGeneratorNode::insertCloudCallback, this, _1));
+    tf_pointcloud_sub_->registerFailureCallback(
+        boost::bind(&OctomapGeneratorNode::transformFailureCallback, this, _1, _2));
 }
 
 OctomapGeneratorNode::~OctomapGeneratorNode()
@@ -156,6 +159,18 @@ void OctomapGeneratorNode::reset()
 const std::string& OctomapGeneratorNode::mapFrameId() const
 {
     return use_initial_pose_reference_ ? reference_frame_id_ : world_frame_id_;
+}
+
+void OctomapGeneratorNode::transformFailureCallback(
+    const sensor_msgs::PointCloud2::ConstPtr& cloud,
+    tf::FilterFailureReason reason)
+{
+    ++tf_failure_count_;
+    ROS_WARN_STREAM_THROTTLE(
+        2.0, "SemanticOcTree TF failures=" << tf_failure_count_
+        << "; dropped cloud frame='" << cloud->header.frame_id
+        << "' target='" << world_frame_id_ << "' reason="
+        << static_cast<int>(reason));
 }
 
 void OctomapGeneratorNode::captureInitialCloudReference(
@@ -382,7 +397,9 @@ void OctomapGeneratorNode::insertCloudCallback(const sensor_msgs::PointCloud2::C
     }
     catch(tf::TransformException& ex)
     {
-        ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
+        ++tf_failure_count_;
+        ROS_ERROR_STREAM("Transform error of sensor data: " << ex.what()
+                         << "; cumulative TF failures=" << tf_failure_count_);
         return;
     }
     // Transform coordinate

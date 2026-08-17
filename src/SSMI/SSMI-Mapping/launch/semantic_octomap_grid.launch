@@ -1,11 +1,10 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="input_topic" default="/grids_points"/>
-  <arg name="output_topic" default="/semantic_pcl/semantic_pcl"/>
-  <arg name="world_frame_id" default="world"/>
+  <arg name="input_topic" default="/local_3d_semantic_voxel_map/global_semantic_admission_grid"/>
+  <arg name="output_topic" default="/semantic_pcl/global_admitted"/>
+  <arg name="world_frame_id" default="map_start"/>
   <arg name="use_initial_pose_reference" default="false"/>
   <arg name="reference_frame_id" default="map_start"/>
-  <arg name="obstacle_threshold" default="0.6"/>
   <arg name="rviz" default="false"/>
   <arg name="rviz_frame" default="$(arg world_frame_id)"/>
 
@@ -16,7 +15,6 @@
         name="grid_semantic_adapter" output="screen">
     <param name="input_topic" value="$(arg input_topic)"/>
     <param name="output_topic" value="$(arg output_topic)"/>
-    <param name="obstacle_threshold" value="$(arg obstacle_threshold)"/>
   </node>
 
   <param name="/octomap/pointcloud_topic" value="$(arg output_topic)"/>

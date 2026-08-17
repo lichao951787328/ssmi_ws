@@ -1,20 +1,12 @@
 grid_semantic_adapter:
-    input_topic: /grids_points
-    output_topic: /semantic_pcl/semantic_pcl
-    obstacle_threshold: 0.6
-    # ROS1 XmlRpc integers are signed 32-bit. -1 converts to UINT32_MAX.
-    invalid_semantic_label: -1
-    traversable_labels: [0, 1, 9]
-    existing_obstacle_labels: [2, 3, 4, 5, 6, 7, 8]
-    dynamic_labels: [11, 12, 13, 14, 15, 16, 17, 18]
-    fallback_obstacle_label: 3
-    dynamic_rgb: [255, 0, 255]
-    # White is the existing SSMI sentinel for an unset semantic class.
-    unknown_rgb: [255, 255, 255]
+    # This is the local voxel node's strict, map_start-frame global admission
+    # output. Never point this adapter at the complete /grids_points cloud.
+    input_topic: /local_3d_semantic_voxel_map/global_semantic_admission_grid
+    output_topic: /semantic_pcl/global_admitted
 
 octomap:
-    pointcloud_topic: /semantic_pcl/semantic_pcl
-    world_frame_id: world
+    pointcloud_topic: /semantic_pcl/global_admitted
+    world_frame_id: map_start
     use_initial_pose_reference: false
     reference_frame_id: map_start
     # A larger backward jump indicates rosbag restart and starts a new map.
@@ -37,7 +29,9 @@ octomap:
     max_ground_z: 3.5
     initialize_floor: false
 
-    # /grids_points is an already-fused local grid, not a raw sensor scan.
+    # The admission cloud is an already-fused local grid, not a raw scan.
+    # Missing cells, dynamic occlusion and the back-exclusion region are not
+    # free evidence. Phase one therefore only inserts admitted endpoints.
     input_mode: local_grid
     enable_raycast_clearing: false
 
