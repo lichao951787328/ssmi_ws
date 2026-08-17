@@ -1,0 +1,9 @@
+<library path="lib/libsemantic_legend_panel">
+  <class name="semantic_octomap/SemanticLegendPanel"
+         type="semantic_octomap::SemanticLegendPanel"
+         base_class_type="rviz::Panel">
+    <description>
+      Dockable color legend for the SSMI semantic OctoMap grid adapter.
+    </description>
+  </class>
+</library>

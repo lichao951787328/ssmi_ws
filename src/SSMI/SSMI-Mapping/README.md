@@ -44,3 +44,34 @@ exist.
 
 Mapping rules and topic names are configurable in
 `params/semantic_octomap_grid.yaml`.
+
+For the recorded localization bag used by this workspace, run the complete
+adapter-to-OctoMap visualization pipeline with:
+
+```bash
+roslaunch semantic_octomap semantic_octomap_grid_bag.launch
+```
+
+This launch plays `/grids_points` and `map -> wuba_base`, enables
+`use_initial_pose_reference`, and opens RViz on `/octomap_color`. The first
+non-empty adapted semantic cloud defines `t0` and `T0 = T_map_wuba_base(t0)`.
+The octree inserts every later cloud with `T0^-1 * T(t)` and publishes in
+`map_start`, so the first cloud pose is the map origin without changing any
+message header timestamp. The original `map` frame remains available through
+the published static `map -> map_start` transform.
+
+To replay continuously and verify automatic map reset after a time rewind:
+
+```bash
+roslaunch semantic_octomap semantic_octomap_grid_bag.launch \
+  bag_play_args:="--clock --delay=2 --loop"
+```
+
+RViz must display `/octomap_color`; `/octomap_full` contains SSMI's custom
+semantic tree payload and is not compatible with the standard OctoMap RViz
+plugin.
+
+The supplied RViz configuration also loads a dockable `SSMI 语义颜色图例`
+panel. It shows the effective Cityscapes colors used by the grid adapter,
+including the magenta 11--18 dynamic-class merge and the wall-color fallback
+for high-traversability-cost points.

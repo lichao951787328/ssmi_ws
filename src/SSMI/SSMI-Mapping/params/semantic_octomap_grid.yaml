@@ -15,6 +15,11 @@ grid_semantic_adapter:
 octomap:
     pointcloud_topic: /semantic_pcl/semantic_pcl
     world_frame_id: world
+    use_initial_pose_reference: false
+    reference_frame_id: map_start
+    # A larger backward jump indicates rosbag restart and starts a new map.
+    # Set below zero to disable automatic session reset.
+    time_jump_reset_threshold: 1.0
     resolution: 0.4
     max_range: 15.0
     raycast_range: 15.0

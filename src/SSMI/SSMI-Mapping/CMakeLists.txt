@@ -19,10 +19,14 @@ set(PACKAGE_DEPENDENCIES
   roscpp
   rospy
   sensor_msgs
+  geometry_msgs
+  pluginlib
   pcl_ros
   pcl_conversions
+  rviz
   std_srvs
   octomap_msgs
+  tf2_ros
 )
 
 find_package(PCL REQUIRED QUIET COMPONENTS common sample_consensus io segmentation filters)
@@ -30,6 +34,10 @@ find_package(PCL REQUIRED QUIET COMPONENTS common sample_consensus io segmentati
 find_package(octomap REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS ${PACKAGE_DEPENDENCIES} message_generation)
+
+find_package(Qt5 ${rviz_QT_VERSION} EXACT REQUIRED Core Widgets)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+add_definitions(-DQT_NO_KEYWORDS)
 
 include_directories(
   include
@@ -81,13 +89,23 @@ add_executable(grid_semantic_adapter_node
  src/grid_semantic_adapter_node.cpp
 )
 
+add_library(semantic_legend_panel
+  include/semantic_octomap_rviz/semantic_legend_panel.h
+  src/semantic_legend_panel.cpp
+)
+set_target_properties(semantic_legend_panel PROPERTIES AUTOMOC ON)
+
 target_link_libraries(semantic_octomap_node semantic_octomap ${LINK_LIBS})
 
 target_link_libraries(grid_semantic_adapter_node ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+target_link_libraries(semantic_legend_panel ${catkin_LIBRARIES} Qt5::Widgets)
+
 add_dependencies(semantic_octomap_node semantic_octomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_dependencies(grid_semantic_adapter_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_dependencies(semantic_legend_panel ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 if(CATKIN_ENABLE_TESTING)
   catkin_add_gtest(grid_semantic_octomap_test
@@ -111,12 +129,21 @@ install(DIRECTORY
   FILES_MATCHING PATTERN "*.yaml"
   )
 
+install(DIRECTORY
+  rviz
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )
+
+install(FILES rviz_plugin.xml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )
+
 catkin_install_python(PROGRAMS
   scripts/ssmi_sensors/semantic_sensor_node.py
   scripts/ssmi_sensors/semantic_sensor.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-install(TARGETS semantic_octomap_node grid_semantic_adapter_node semantic_octomap
+install(TARGETS semantic_octomap_node grid_semantic_adapter_node semantic_octomap semantic_legend_panel
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -124,6 +151,7 @@ install(TARGETS semantic_octomap_node grid_semantic_adapter_node semantic_octoma
 
 install(DIRECTORY
   include/semantic_octomap_node
+  include/semantic_octomap_rviz
   include/semantic_octree
   include/semantic_point_cloud
   DESTINATION "${CATKIN_PACKAGE_INCLUDE_DESTINATION}/.."

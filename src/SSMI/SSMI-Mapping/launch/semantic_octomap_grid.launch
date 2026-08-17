@@ -3,7 +3,11 @@
   <arg name="input_topic" default="/grids_points"/>
   <arg name="output_topic" default="/semantic_pcl/semantic_pcl"/>
   <arg name="world_frame_id" default="world"/>
+  <arg name="use_initial_pose_reference" default="false"/>
+  <arg name="reference_frame_id" default="map_start"/>
   <arg name="obstacle_threshold" default="0.6"/>
+  <arg name="rviz" default="false"/>
+  <arg name="rviz_frame" default="$(arg world_frame_id)"/>
 
   <rosparam file="$(find semantic_octomap)/params/semantic_octomap_grid.yaml"
             command="load"/>
@@ -17,6 +21,12 @@
 
   <param name="/octomap/pointcloud_topic" value="$(arg output_topic)"/>
   <param name="/octomap/world_frame_id" value="$(arg world_frame_id)"/>
+  <param name="/octomap/use_initial_pose_reference"
+         value="$(arg use_initial_pose_reference)"/>
+  <param name="/octomap/reference_frame_id" value="$(arg reference_frame_id)"/>
   <node pkg="semantic_octomap" type="semantic_octomap_node"
         name="semantic_octomap" output="screen"/>
+
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="semantic_octomap_rviz"
+        args="-d $(find semantic_octomap)/rviz/semantic_octomap_grid.rviz -f $(arg rviz_frame)"/>
 </launch>

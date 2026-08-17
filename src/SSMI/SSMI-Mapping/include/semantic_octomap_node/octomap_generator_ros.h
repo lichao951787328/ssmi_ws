@@ -14,6 +14,7 @@
 #include <boost/shared_ptr.hpp>
 #include <tf/transform_listener.h>
 #include <tf/message_filter.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <message_filters/subscriber.h>
 #include <string>
 #include <vector>
@@ -55,6 +56,9 @@ protected:
     bool querry_RLE(semantic_octomap::GetRLE::Request& request, semantic_octomap::GetRLE::Response& response);
     bool resetMap(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
     bool initializeRobotFloor(const ros::Time& stamp);
+    const std::string& mapFrameId() const;
+    void captureInitialCloudReference(const tf::StampedTransform& sensor_to_world,
+                                      const std_msgs::Header& cloud_header);
     ros::NodeHandle nh_; ///<ROS handler
     ros::Publisher fullmap_pub_; ///<ROS publisher for full octomap message
     ros::Publisher colormap_pub_; ///<ROS publisher for color octomap message
@@ -62,8 +66,16 @@ protected:
     message_filters::Subscriber<sensor_msgs::PointCloud2>* pointcloud_sub_; ///<ROS subscriber for pointcloud message
     tf::MessageFilter<sensor_msgs::PointCloud2>* tf_pointcloud_sub_; ///<ROS tf message filter to sychronize the tf and pointcloud messages
     tf::TransformListener tf_listener_; ///<Listener for the transform between the camera and the world coordinates
+    tf2_ros::StaticTransformBroadcaster reference_tf_broadcaster_;
     std::string world_frame_id_; ///<Id of the world frame
+    std::string reference_frame_id_; ///<Map frame whose origin is the first usable cloud pose
     std::string pointcloud_topic_; ///<Topic name for subscribed pointcloud message
+    bool use_initial_pose_reference_; ///<Whether T0^-1*T(t) is used for insertion
+    bool have_initial_pose_reference_; ///<Whether the first usable cloud established T0
+    double time_jump_reset_threshold_; ///<Large rewind starts a new mapping session
+    ros::Time initial_cloud_stamp_; ///<Sensor timestamp defining t0
+    ros::Time latest_cloud_stamp_; ///<Latest cloud inserted into the current session
+    tf::Transform initial_cloud_to_world_; ///<T_world_cloud(t0)
     float max_range_; ///<Max range for points to be inserted into octomap
     float raycast_range_; ///<Max range for points to perform raycasting to free unoccupied space
     std::string input_mode_; ///<Raw sensor scan or already-fused local grid
