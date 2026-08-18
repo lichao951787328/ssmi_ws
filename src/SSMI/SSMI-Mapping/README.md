@@ -34,8 +34,12 @@ The adapter subscribes to
 `/local_3d_semantic_voxel_map/global_semantic_admission_grid` and publishes
 `x y z rgb semantic_color` on `/semantic_pcl/global_admitted`. It admits only
 terrain labels 0, 1 and 9 and confirmed static-obstacle labels 2 through 8.
-Dynamic, unknown, high-cost and any other unexpected labels are counted and
-dropped; they are never remapped to wall.
+Dynamic, unknown and any other unexpected labels are counted and dropped.
+The adapter deliberately does not read traversability or confidence: the
+local voxel map owns those decisions and must convert any confirmed,
+persistent high-cost geometry (for example a stair riser) to an admitted
+static-obstacle label before publishing this cloud. No label is remapped to
+wall inside the adapter.
 
 The admission cloud is already in `map_start`. The configuration fixes the
 tree resolution at 0.4 m, sets `input_mode: local_grid`, disables raycast
