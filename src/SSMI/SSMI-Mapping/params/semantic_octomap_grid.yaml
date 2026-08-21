@@ -1,8 +1,10 @@
 grid_semantic_adapter:
-    # This is the local voxel node's strict, map_start-frame global admission
-    # output. Never point this adapter at the complete /grids_points cloud.
+    # Legacy compatibility only. The local voxel node now performs this
+    # conversion and publishes /semantic_pcl/global_admitted directly.
     input_topic: /local_3d_semantic_voxel_map/global_semantic_admission_grid
     output_topic: /semantic_pcl/global_admitted
+    # Input field names, label/color mapping, unknown handling, and the
+    # high-cost override all come from params/semantic_schema.yaml.
 
 octomap:
     pointcloud_topic: /semantic_pcl/global_admitted
@@ -12,7 +14,7 @@ octomap:
     # A larger backward jump indicates rosbag restart and starts a new map.
     # Set below zero to disable automatic session reset.
     time_jump_reset_threshold: 1.0
-    resolution: 0.4
+    resolution: 0.1
     max_range: 15.0
     raycast_range: 15.0
     clamping_thres_min: 0.0001
@@ -30,18 +32,17 @@ octomap:
     initialize_floor: false
 
     # The admission cloud is an already-fused local grid, not a raw scan.
-    # Missing cells, dynamic occlusion and the back-exclusion region are not
-    # free evidence. Phase one therefore only inserts admitted endpoints.
+    # Missing cells and dynamic occlusion are not free evidence. This inserts
+    # only the endpoints selected by the upstream local filter.
     input_mode: local_grid
     enable_raycast_clearing: false
 
-    # Flat RGB triples for Cityscapes labels 2..8. These colors take priority
-    # over ordinary semantics when several samples share one OctoMap voxel.
-    obstacle_semantic_colors: [70, 70, 70,
-                               102, 102, 156,
-                               190, 153, 153,
-                               153, 153, 153,
-                               250, 170, 30,
-                               220, 220, 0,
-                               107, 142, 35]
+    # The local voxel node emits only multi-frame, positive free-space
+    # contradictions. Missing local cells and dynamic occlusion are not events.
+    enable_explicit_revocation: true
+    revoked_free_topic: /local_3d_semantic_voxel_map/revoked_free
+    revoked_reclassified_topic: /local_3d_semantic_voxel_map/revoked_reclassified
+
+    # Semantic class admission and static-obstacle priority are read from the
+    # shared /semantic_schema parameter; do not duplicate a palette here.
     save_path: /tmp/semantic_grid_map.ot

@@ -9,12 +9,15 @@
   <arg name="input_topic" default="/local_3d_semantic_voxel_map/global_semantic_admission_grid"/>
   <arg name="semantic_topic" default="/semantic_pcl/global_admitted"/>
   <arg name="map_frame" default="map_start"/>
+  <arg name="semantic_schema"
+       default="$(find semantic_octomap)/params/semantic_schema.yaml"/>
 
   <param name="/use_sim_time" value="true"/>
 
   <include file="$(find semantic_octomap)/launch/semantic_octomap_grid.launch">
     <arg name="input_topic" value="$(arg input_topic)"/>
     <arg name="output_topic" value="$(arg semantic_topic)"/>
+    <arg name="semantic_schema" value="$(arg semantic_schema)"/>
     <arg name="world_frame_id" value="$(arg map_frame)"/>
     <arg name="use_initial_pose_reference" value="false"/>
     <arg name="reference_frame_id" value="$(arg map_frame)"/>
@@ -22,7 +25,8 @@
     <arg name="rviz_frame" value="$(arg map_frame)"/>
   </include>
 
-  <!-- Delay gives the adapter, TF filter, OctoMap node and RViz time to start. -->
+  <!-- Delay gives the local voxel subscriber, TF filter, OctoMap node and RViz
+       time to start. The local voxel launch is run separately. -->
   <node pkg="rosbag" type="play" name="semantic_octomap_grid_bag"
         args="$(arg bag_play_args) $(arg bag)" output="screen"/>
 </launch>

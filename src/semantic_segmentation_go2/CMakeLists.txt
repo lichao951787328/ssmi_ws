@@ -30,6 +30,7 @@ catkin_install_python(PROGRAMS
   scripts/dynamic_tf_go2.py
   scripts/dynamic_semantic_remap.py
   scripts/go2_fortress_control_adapter.py
+  scripts/omni_semantic_cloud_merger.py
   scripts/sdf_sensor_tf.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

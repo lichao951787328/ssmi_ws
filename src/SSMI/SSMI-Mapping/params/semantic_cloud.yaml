@@ -22,9 +22,8 @@ semantic_pcl:
     absolute_threshold: 0.15
     relative_threshold: 0.03
     reject_semantic_boundaries: true
-  # Dynamic pixels have already been remapped to this exact semantic RGB.
-  # Force both PointCloud2 rgb and semantic_color fields to the same value so
-  # neither camera texture nor downstream color averaging changes the class.
-  dynamic_rgb: [255, 0, 255]
+  # Dynamic colors and aliases are read from /semantic_schema. For those
+  # pixels, rgb and semantic_color are kept identical so camera texture cannot
+  # hide the categorical semantic value.
   # set unit_conversion to 1000 if the depth image is in mm
   unit_conversion: 1.0

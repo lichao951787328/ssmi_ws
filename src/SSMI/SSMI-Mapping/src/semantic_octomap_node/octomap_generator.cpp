@@ -43,7 +43,7 @@ bool OctomapGenerator<CLOUD, OCTREE>::doesWriteSemantics()
 template<class CLOUD, class OCTREE>
 void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2::Ptr& cloud, const Eigen::Matrix4f& sensorToWorld)
 {
-    const octomap::ColorOcTreeNode::Color dynamic_color(255, 0, 255);
+    const uint32_t legacy_dynamic_bits = 0x00ff00ffu;
 
     // Transform first, then select one original point per OctoMap key. The
     // semantic_color field contains packed RGB bits inside a float; applying
@@ -65,11 +65,15 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
         std::memcpy(&bits, &point.semantic_color, sizeof(uint32_t));
         return bits;
     };
-    const auto isDynamic = [&dynamic_color, &semanticBits](const typename CLOUD::PointType& point) {
-        const uint32_t bits = semanticBits(point);
-        return ((bits >> 16) & 0xff) == dynamic_color.r &&
-               ((bits >> 8) & 0xff) == dynamic_color.g &&
-               (bits & 0xff) == dynamic_color.b;
+    const auto isDynamic = [this, legacy_dynamic_bits, &semanticBits](
+                               const typename CLOUD::PointType& point) {
+        const uint32_t bits = semanticBits(point) & 0x00ffffffu;
+        if (!use_semantic_schema_)
+            return bits == legacy_dynamic_bits;
+        const semantic_octomap::ResolvedSemantic resolved =
+            semantic_schema_.resolveColor(bits);
+        return resolved.known &&
+               resolved.role == semantic_octomap::SemanticRole::DynamicObstacle;
     };
     const auto semanticPriority = [this, &isDynamic, &semanticBits](
                                       const typename CLOUD::PointType& point) {
@@ -92,26 +96,46 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
         if (!std::isfinite(it->x) || !std::isfinite(it->y) || !std::isfinite(it->z))
             continue;
 
+        typename CLOUD::PointType normalized_point;
+        const typename CLOUD::PointType* selected_point = &(*it);
+        if (use_semantic_schema_)
+        {
+            const semantic_octomap::ResolvedSemantic resolved =
+                semantic_schema_.resolveColor(semanticBits(*it));
+            if (!resolved.admitted)
+                continue;
+            const uint32_t canonical_bits =
+                semantic_octomap::SemanticSchema::packRgb(resolved.rgb);
+            if ((semanticBits(*it) & 0x00ffffffu) != canonical_bits)
+            {
+                normalized_point = *it;
+                std::memcpy(&normalized_point.semantic_color,
+                            &canonical_bits, sizeof(uint32_t));
+                selected_point = &normalized_point;
+            }
+        }
+
         octomap::OcTreeKey key;
-        if (!octomap_.coordToKeyChecked(it->x, it->y, it->z, key))
+        if (!octomap_.coordToKeyChecked(
+                selected_point->x, selected_point->y, selected_point->z, key))
             continue;
         const uint64_t packed_key = packKey(key);
-        const float dx = it->x - origin_x;
-        const float dy = it->y - origin_y;
-        const float dz = it->z - origin_z;
+        const float dx = selected_point->x - origin_x;
+        const float dy = selected_point->y - origin_y;
+        const float dz = selected_point->z - origin_z;
         const float distance_sq = dx*dx + dy*dy + dz*dz;
 
         const auto existing = key_to_index.find(packed_key);
         if (existing == key_to_index.end())
         {
             key_to_index.emplace(packed_key, pcl_cloud.size());
-            pcl_cloud.push_back(*it);
+            pcl_cloud.push_back(*selected_point);
             selected_distance_sq.push_back(distance_sq);
             continue;
         }
 
         const size_t index = existing->second;
-        const int incoming_priority = semanticPriority(*it);
+        const int incoming_priority = semanticPriority(*selected_point);
         const int selected_priority = semanticPriority(pcl_cloud[index]);
         // Confirmed static obstacles outrank dynamic occluders, and dynamic
         // detections outrank ordinary semantics. Within one group retain the
@@ -120,7 +144,7 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
             (incoming_priority == selected_priority &&
              distance_sq < selected_distance_sq[index]))
         {
-            pcl_cloud[index] = *it;
+            pcl_cloud[index] = *selected_point;
             selected_distance_sq[index] = distance_sq;
         }
     }
@@ -148,6 +172,7 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
                 class_obs.r = (rgb >> 16) & 0x0000ff;
                 class_obs.g = (rgb >> 8)  & 0x0000ff;
                 class_obs.b = (rgb)       & 0x0000ff;
+                const bool dynamic_observation = isDynamic(*it);
             
                 octomap::OcTreeKey occupied_key;
                 const bool has_occupied_key = octomap_.coordToKeyChecked(
@@ -155,7 +180,7 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
                 SemanticsOcTreeNode* existing_node = has_occupied_key
                     ? octomap_.search(occupied_key) : NULL;
                 bool dynamic_occludes_static = false;
-                if (class_obs == dynamic_color && existing_node != NULL &&
+                if (dynamic_observation && existing_node != NULL &&
                     existing_node->isSemanticsSet())
                 {
                     const octomap::ColorOcTreeNode::Color existing_semantic =
@@ -177,7 +202,7 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
                     : octomap_.updateNode(
                         it->x, it->y, it->z, true, class_obs, color_obs, false);
 
-                if (!dynamic_occludes_static && node != NULL && class_obs == dynamic_color)
+                if (!dynamic_occludes_static && node != NULL && dynamic_observation)
                 {
                     // A current dynamic detection is authoritative for this
                     // occupied voxel. Replace (do not average) both colors and
@@ -185,9 +210,9 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
                     const float occupancy_log_odds = node->getLogOdds();
                     octomap::SemanticsLogOdds dynamic_semantics;
                     dynamic_semantics.data[0] = octomap::ColorWithLogOdds(
-                        dynamic_color, occupancy_log_odds);
+                        class_obs, occupancy_log_odds);
                     node->setSemantics(dynamic_semantics);
-                    node->setColor(dynamic_color);
+                    node->setColor(class_obs);
                     node->setLogOdds(occupancy_log_odds);
 
                     if (has_occupied_key)
@@ -298,6 +323,47 @@ void OctomapGenerator<CLOUD, OCTREE>::insertPointCloud(const pcl::PCLPointCloud2
     /* updates inner node occupancy and colors
     if(endpoint_count > 0)
         octomap_.updateInnerOccupancy();*/
+}
+
+template<class CLOUD, class OCTREE>
+std::size_t OctomapGenerator<CLOUD, OCTREE>::deleteVoxels(
+    const std::vector<Eigen::Vector3f>& points)
+{
+    const auto packKey = [](const octomap::OcTreeKey& key) {
+        return (static_cast<uint64_t>(key[0]) << 32) |
+               (static_cast<uint64_t>(key[1]) << 16) |
+               static_cast<uint64_t>(key[2]);
+    };
+
+    std::unordered_set<uint64_t> visited;
+    visited.reserve(points.size());
+    std::size_t deleted = 0;
+    for (const Eigen::Vector3f& point : points)
+    {
+        if (!point.allFinite())
+            continue;
+
+        octomap::OcTreeKey key;
+        if (!octomap_.coordToKeyChecked(point.x(), point.y(), point.z(), key))
+            continue;
+        const uint64_t packed_key = packKey(key);
+        if (!visited.insert(packed_key).second)
+            continue;
+
+        // deleteNode() expands a pruned leaf if needed and removes only this
+        // finest-resolution key. First search so a repeated revoke remains a
+        // true no-op and the returned count describes actual removals.
+        if (octomap_.search(key) == NULL)
+            continue;
+        octomap_.deleteNode(key);
+        previous_dynamic_keys_.erase(packed_key);
+        dynamic_free_confirmation_counts_.erase(packed_key);
+        ++deleted;
+    }
+
+    if (deleted > 0)
+        octomap_.updateInnerOccupancy();
+    return deleted;
 }
 
 template<class CLOUD, class OCTREE>

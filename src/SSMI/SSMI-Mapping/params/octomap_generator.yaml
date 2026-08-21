@@ -36,8 +36,7 @@ octomap:
         base_to_ground: 0.13228
         clear_above_floor: true
         clear_height: 1.0
-        # Reuse label 0 (background/unlabeled) for floor semantics.
-        semantic_rgb: [0, 0, 0]
+        # Semantic label/color come from semantic_schema.defaults.initial_floor_label.
         # RGB used when the octomap is switched to non-semantic color mode.
         rgb: [204, 204, 204]
     save_path: /address/to/save/map.ot

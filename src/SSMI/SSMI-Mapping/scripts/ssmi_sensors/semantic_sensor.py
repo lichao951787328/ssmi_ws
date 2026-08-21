@@ -12,7 +12,7 @@ class PointType(Enum):
 
 class SemanticPclGenerator:
     def __init__(self, intrinsic, width = 80, height = 60,unit_conversion = 1, frame_id = "/camera",
-                 point_type = PointType.SEMANTIC, dynamic_rgb = (255, 0, 255)):
+                 point_type = PointType.SEMANTIC, dynamic_rgbs = ()):
         '''
         width: (int) width of input images
         height: (int) height of input images
@@ -21,11 +21,14 @@ class SemanticPclGenerator:
         self.point_type = point_type
         self.intrinsic = intrinsic
         self.unit_conversion = unit_conversion # Unit conversion factor 1 for m and 1e3 for mm
-        dynamic_rgb = np.asarray(dynamic_rgb, dtype=np.uint8)
-        if dynamic_rgb.shape != (3,):
-            raise ValueError('dynamic_rgb must contain exactly three RGB values')
-        self.dynamic_rgb = dynamic_rgb
-        self.dynamic_bgr = dynamic_rgb[::-1]
+        dynamic_rgbs = np.asarray(dynamic_rgbs, dtype=np.uint8)
+        if dynamic_rgbs.size == 0:
+            dynamic_rgbs = np.empty((0, 3), dtype=np.uint8)
+        if dynamic_rgbs.ndim != 2 or dynamic_rgbs.shape[1] != 3:
+            raise ValueError('dynamic_rgbs must be a list of RGB triples')
+        # cv_bridge supplies the semantic image as bgr8. Keep every configured
+        # canonical color and input alias so no dynamic color is hard-coded here.
+        self.dynamic_bgrs = dynamic_rgbs[:, ::-1]
         # Allocate arrays
         x_index = np.array([list(range(width))*height], dtype = '<f4')
         y_index = np.array([[i]*width for i in range(height)], dtype = '<f4').ravel()
@@ -99,13 +102,15 @@ class SemanticPclGenerator:
         return self.cloud_ros
 
     def generate_cloud_semantic(self, bgr_img, semantic_color, depth_img, stamp):
-        # Use an exact comparison: semantic labels are categorical and must
-        # never be interpolated or color-blended. Dynamic points carry the
-        # canonical magenta in both rgb and semantic_color fields.
-        dynamic_mask = np.all(semantic_color == self.dynamic_rgb, axis=2)
+        # Use exact comparisons: semantic labels are categorical and must never
+        # be interpolated or color-blended. For configured dynamic colors, make
+        # rgb match semantic_color so camera texture cannot obscure the class.
+        dynamic_mask = np.zeros(semantic_color.shape[:2], dtype=bool)
+        for dynamic_bgr in self.dynamic_bgrs:
+            dynamic_mask |= np.all(semantic_color == dynamic_bgr, axis=2)
         if np.any(dynamic_mask):
             bgr_img = bgr_img.copy()
-            bgr_img[dynamic_mask] = self.dynamic_bgr
+            bgr_img[dynamic_mask] = semantic_color[dynamic_mask]
         self.generate_cloud_data_common(bgr_img, depth_img)
         #Transform semantic color
         self.semantic_color_vect[:,0:1] = semantic_color[:,:,0].reshape(-1,1)

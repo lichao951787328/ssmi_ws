@@ -75,6 +75,7 @@ set(LINK_LIBS
 
 add_library(semantic_octomap SHARED
             src/semantic_octomap_node/octomap_generator.cpp
+            src/semantic_octomap_node/semantic_schema.cpp
             src/semantic_octree/Semantics.cpp)
 
 add_dependencies(semantic_octomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -97,9 +98,9 @@ set_target_properties(semantic_legend_panel PROPERTIES AUTOMOC ON)
 
 target_link_libraries(semantic_octomap_node semantic_octomap ${LINK_LIBS})
 
-target_link_libraries(grid_semantic_adapter_node ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries(grid_semantic_adapter_node semantic_octomap ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-target_link_libraries(semantic_legend_panel ${catkin_LIBRARIES} Qt5::Widgets)
+target_link_libraries(semantic_legend_panel semantic_octomap ${catkin_LIBRARIES} Qt5::Widgets)
 
 add_dependencies(semantic_octomap_node semantic_octomap ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 

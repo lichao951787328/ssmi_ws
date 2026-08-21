@@ -1,0 +1,70 @@
+# Shared semantic contract for every SSMI-Mapping input path.
+#
+# RGB values use [R, G, B] order. `label` is the upstream integer class ID;
+# `name`/`meaning` are human-readable; `role` controls mapping behavior; and
+# `global_map` is the final admission switch for the persistent octree.
+semantic_schema:
+  version: 1
+
+  # Used by grid_semantic_adapter_node. The direct SSMI-ready cloud keeps its
+  # fixed x/y/z/rgb/semantic_color interface and is classified by RGB below.
+  input:
+    label_field: semantic_lable
+    traversability_field: traversability
+
+  defaults:
+    # Used only when octomap.initialize_floor is enabled. It must reference an
+    # admitted terrain class, and its RGB is resolved from the class below.
+    initial_floor_label: 0
+
+  # Values whose label and RGB are both absent from `classes` use this rule.
+  # policy: exclude          -> do not write them into the global map (default)
+  # policy: map_to_fallback  -> encode them as fallback_label
+  unknown:
+    policy: exclude
+    fallback_label: 3
+    name: unknown
+    meaning: invalid, absent, or not configured by the upstream perception schema
+    rgb: [127, 127, 127]
+
+  # This override is applied only to a known class already admitted to the
+  # global map. In particular, a high-cost dynamic class is still excluded.
+  traversability:
+    override_semantics: true
+    obstacle_threshold: 0.75
+    obstacle_label: 3
+
+  # role must be one of: terrain, static_obstacle, dynamic_obstacle, ignore.
+  # `rgb` is both the canonical output color and an accepted input color.
+  # Put any additional upstream colors for the same class in input_rgb_aliases.
+  # Dynamic/ignore classes must use global_map: false; startup validation rejects
+  # a configuration that could write them into the persistent SemanticOcTree.
+  classes:
+    - {label: 0,  name: road,          meaning: drivable road or floor,       rgb: [128, 64, 128],  role: terrain,          global_map: true}
+    - {label: 1,  name: sidewalk,      meaning: sidewalk,                     rgb: [244, 35, 232],  role: terrain,          global_map: true}
+    - {label: 2,  name: building,      meaning: building or structure,        rgb: [70, 70, 70],    role: static_obstacle,  global_map: true}
+    - {label: 3,  name: wall,          meaning: wall and high-cost fallback,   rgb: [102, 102, 156], role: static_obstacle,  global_map: true}
+    - {label: 4,  name: fence,         meaning: fence,                        rgb: [190, 153, 153], role: static_obstacle,  global_map: true}
+    - {label: 5,  name: pole,          meaning: pole,                         rgb: [153, 153, 153], role: static_obstacle,  global_map: true}
+    - {label: 6,  name: traffic_light, meaning: traffic light,                rgb: [250, 170, 30],  role: static_obstacle,  global_map: true}
+    - {label: 7,  name: traffic_sign,  meaning: traffic sign,                 rgb: [220, 220, 0],   role: static_obstacle,  global_map: true}
+    - {label: 8,  name: vegetation,    meaning: persistent vegetation,        rgb: [107, 142, 35],  role: static_obstacle,  global_map: true}
+    - {label: 9,  name: terrain,       meaning: natural traversable terrain,   rgb: [152, 251, 152], role: terrain,          global_map: true}
+    - {label: 10, name: sky,           meaning: sky or non-spatial pixels,     rgb: [70, 130, 180],  role: ignore,           global_map: false}
+
+    # Magenta is accepted as an input alias because the RGB-D compatibility
+    # path merges detector-marked people/vehicles into one dynamic color.
+    - label: 11
+      name: person
+      meaning: person or merged dynamic obstacle
+      rgb: [220, 20, 60]
+      input_rgb_aliases: [[255, 0, 255]]
+      role: dynamic_obstacle
+      global_map: false
+    - {label: 12, name: rider,      meaning: rider,      rgb: [255, 0, 0],   role: dynamic_obstacle, global_map: false}
+    - {label: 13, name: car,        meaning: car,        rgb: [0, 0, 142],   role: dynamic_obstacle, global_map: false}
+    - {label: 14, name: truck,      meaning: truck,      rgb: [0, 0, 70],    role: dynamic_obstacle, global_map: false}
+    - {label: 15, name: bus,        meaning: bus,        rgb: [0, 60, 100],  role: dynamic_obstacle, global_map: false}
+    - {label: 16, name: train,      meaning: train,      rgb: [0, 80, 100],  role: dynamic_obstacle, global_map: false}
+    - {label: 17, name: motorcycle, meaning: motorcycle, rgb: [0, 0, 230],   role: dynamic_obstacle, global_map: false}
+    - {label: 18, name: bicycle,    meaning: bicycle,    rgb: [119, 11, 32], role: dynamic_obstacle, global_map: false}

@@ -3,6 +3,7 @@
 
 #include <octomap/octomap.h>
 #include <semantic_octomap/RayRLE.h>
+#include <semantic_octomap_node/semantic_schema.h>
 #include <cstdint>
 #include <vector>
 
@@ -25,6 +26,9 @@ public:
 
     /// Semantic packed RGB values that outrank ordinary samples in a voxel.
     virtual void setObstacleSemanticColors(const std::vector<uint32_t>& colors) = 0;
+
+    /// Apply the shared label/color/role/global-admission contract.
+    virtual void setSemanticSchema(const semantic_octomap::SemanticSchema& schema) = 0;
 
     /// Extra free updates for a previously dynamic voxel only after the
     /// current scan has independently observed that voxel as free.
@@ -63,6 +67,11 @@ public:
      * \param sensorToWorld transform from sensor frame to world frame
      */
     virtual void insertPointCloud(const pcl::PCLPointCloud2::Ptr& cloud, const Eigen::Matrix4f& sensorToWorld) = 0;
+
+    /// Delete exactly the map voxels containing the supplied world-frame points.
+    /// This is reserved for explicit upstream revocation evidence; it does not
+    /// raycast and therefore cannot treat an unobserved region as free space.
+    virtual std::size_t deleteVoxels(const std::vector<Eigen::Vector3f>& points) = 0;
     
     virtual bool get_ray_RLE(const octomap::point3d& origin, const octomap::point3d& end, semantic_octomap::RayRLE& rayRLE_msg) = 0;
 

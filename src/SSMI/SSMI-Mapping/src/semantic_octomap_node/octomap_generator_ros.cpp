@@ -5,6 +5,7 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <tf/transform_datatypes.h>
 #include <pcl/conversions.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -29,6 +30,14 @@ OctomapGeneratorNode::OctomapGeneratorNode(ros::NodeHandle& nh)
     tf_pointcloud_sub_->registerCallback(boost::bind(&OctomapGeneratorNode::insertCloudCallback, this, _1));
     tf_pointcloud_sub_->registerFailureCallback(
         boost::bind(&OctomapGeneratorNode::transformFailureCallback, this, _1, _2));
+    if (enable_explicit_revocation_)
+    {
+        revoked_free_sub_ = nh_.subscribe(
+            revoked_free_topic_, 5, &OctomapGeneratorNode::revokedFreeCallback, this);
+        revoked_reclassified_sub_ = nh_.subscribe(
+            revoked_reclassified_topic_, 5,
+            &OctomapGeneratorNode::revokedReclassifiedCallback, this);
+    }
 }
 
 OctomapGeneratorNode::~OctomapGeneratorNode()
@@ -42,6 +51,14 @@ void OctomapGeneratorNode::reset()
     octomap_generator_ = new OctomapGenerator<PCLSemantics, SemanticOctree>();
 
     nh_.getParam("/octomap/pointcloud_topic", pointcloud_topic_);
+    nh_.param("/octomap/enable_explicit_revocation", enable_explicit_revocation_,
+              false);
+    nh_.param<std::string>(
+        "/octomap/revoked_free_topic", revoked_free_topic_,
+        "/local_3d_semantic_voxel_map/revoked_free");
+    nh_.param<std::string>(
+        "/octomap/revoked_reclassified_topic", revoked_reclassified_topic_,
+        "/local_3d_semantic_voxel_map/revoked_reclassified");
     nh_.getParam("/octomap/world_frame_id", world_frame_id_);
     nh_.param("/octomap/use_initial_pose_reference", use_initial_pose_reference_, false);
     nh_.param<std::string>("/octomap/reference_frame_id", reference_frame_id_, "map_start");
@@ -55,6 +72,8 @@ void OctomapGeneratorNode::reset()
     have_initial_pose_reference_ = !use_initial_pose_reference_;
     initial_cloud_stamp_ = ros::Time();
     latest_cloud_stamp_ = ros::Time();
+    latest_revoked_free_stamp_ = ros::Time();
+    latest_revoked_reclassified_stamp_ = ros::Time();
     initial_cloud_to_world_.setIdentity();
     nh_.getParam("/octomap/resolution", resolution_);
     nh_.getParam("/octomap/max_range", max_range_);
@@ -63,12 +82,7 @@ void OctomapGeneratorNode::reset()
     const bool default_raycast_clearing = input_mode_ != "local_grid";
     nh_.param("/octomap/enable_raycast_clearing", enable_raycast_clearing_,
               default_raycast_clearing);
-    if (!nh_.getParam("/octomap/obstacle_semantic_colors", obstacle_semantic_rgb_values_))
-    {
-        obstacle_semantic_rgb_values_ = {
-            70, 70, 70, 102, 102, 156, 190, 153, 153, 153, 153, 153,
-            250, 170, 30, 220, 220, 0, 107, 142, 35};
-    }
+    semantic_schema_ = semantic_octomap::SemanticSchema::fromRos(nh_);
     nh_.getParam("/octomap/clamping_thres_min", clamping_thres_min_);
     nh_.getParam("/octomap/clamping_thres_max", clamping_thres_max_);
     nh_.getParam("/octomap/occupancy_thres", occupancy_thres_);
@@ -95,40 +109,20 @@ void OctomapGeneratorNode::reset()
     nh_.param("/octomap/initial_floor/align_voxel_top", initial_floor_align_voxel_top_, false);
     nh_.param("/octomap/initial_floor/clear_above_floor", initial_floor_clear_above_, true);
     nh_.param("/octomap/initial_floor/clear_height", initial_floor_clear_height_, 1.0);
-    if (!nh_.getParam("/octomap/initial_floor/semantic_rgb", initial_floor_semantic_rgb_))
-        initial_floor_semantic_rgb_ = std::vector<int>{0, 0, 0};
+    const semantic_octomap::SemanticClass& floor_semantic =
+        semantic_schema_.initialFloorClass();
+    initial_floor_semantic_rgb_ = {
+        static_cast<int>(floor_semantic.rgb[0]),
+        static_cast<int>(floor_semantic.rgb[1]),
+        static_cast<int>(floor_semantic.rgb[2])};
     if (!nh_.getParam("/octomap/initial_floor/rgb", initial_floor_rgb_))
         initial_floor_rgb_ = std::vector<int>{204, 204, 204};
-    if (initial_floor_semantic_rgb_.size() != 3 || initial_floor_rgb_.size() != 3)
+    if (initial_floor_rgb_.size() != 3)
     {
-        ROS_WARN("Initial floor RGB parameters must contain exactly three values; using defaults");
-        initial_floor_semantic_rgb_ = std::vector<int>{0, 0, 0};
+        ROS_WARN("Initial floor display RGB must contain exactly three values; using default");
         initial_floor_rgb_ = std::vector<int>{204, 204, 204};
     }
     floor_initialized_ = false;
-    std::vector<uint32_t> obstacle_semantic_colors;
-    if (obstacle_semantic_rgb_values_.size() % 3 != 0)
-    {
-        ROS_WARN("/octomap/obstacle_semantic_colors must be a flat list of RGB triples; ignoring it");
-    }
-    else
-    {
-        for (size_t i = 0; i < obstacle_semantic_rgb_values_.size(); i += 3)
-        {
-            const int r = obstacle_semantic_rgb_values_[i];
-            const int g = obstacle_semantic_rgb_values_[i + 1];
-            const int b = obstacle_semantic_rgb_values_[i + 2];
-            if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
-            {
-                ROS_WARN("Ignoring out-of-range RGB triple in /octomap/obstacle_semantic_colors");
-                continue;
-            }
-            obstacle_semantic_colors.push_back(
-                (static_cast<uint32_t>(r) << 16) |
-                (static_cast<uint32_t>(g) << 8) |
-                static_cast<uint32_t>(b));
-        }
-    }
     octomap_generator_->setClampingThresMin(clamping_thres_min_);
     octomap_generator_->setClampingThresMax(clamping_thres_max_);
     octomap_generator_->setResolution(resolution_);
@@ -138,7 +132,7 @@ void OctomapGeneratorNode::reset()
     octomap_generator_->setDynamicFreeUpdates(dynamic_free_updates_);
     octomap_generator_->setDynamicFreeConfirmations(dynamic_free_confirmations_);
     octomap_generator_->setRaycastClearingEnabled(enable_raycast_clearing_);
-    octomap_generator_->setObstacleSemanticColors(obstacle_semantic_colors);
+    octomap_generator_->setSemanticSchema(semantic_schema_);
     octomap_generator_->setPsi(psi_);
     octomap_generator_->setPhi(phi_);
     octomap_generator_->setRayCastRange(raycast_range_);
@@ -153,7 +147,14 @@ void OctomapGeneratorNode::reset()
                     << ", raycast clearing="
                     << (enable_raycast_clearing_ ? "enabled" : "disabled")
                     << ", tracking frame=" << world_frame_id_
-                    << ", map frame=" << mapFrameId());
+                    << ", map frame=" << mapFrameId()
+                    << ", explicit revocation="
+                    << (enable_explicit_revocation_ ? "enabled" : "disabled")
+                    << ", semantic classes=" << semantic_schema_.classes().size()
+                    << ", unknown="
+                    << (semantic_schema_.unknownPolicy() ==
+                            semantic_octomap::SemanticSchema::UnknownPolicy::Exclude
+                            ? "exclude" : "map_to_fallback"));
 }
 
 const std::string& OctomapGeneratorNode::mapFrameId() const
@@ -352,6 +353,136 @@ bool OctomapGeneratorNode::querry_RLE(semantic_octomap::GetRLE::Request& request
     return true;
 }
 
+void OctomapGeneratorNode::revokedFreeCallback(
+    const sensor_msgs::PointCloud2::ConstPtr& cloud)
+{
+    applyRevocationCloud(cloud, latest_revoked_free_stamp_, "explicit free");
+}
+
+void OctomapGeneratorNode::revokedReclassifiedCallback(
+    const sensor_msgs::PointCloud2::ConstPtr& cloud)
+{
+    applyRevocationCloud(
+        cloud, latest_revoked_reclassified_stamp_, "stable reclassification");
+}
+
+void OctomapGeneratorNode::applyRevocationCloud(
+    const sensor_msgs::PointCloud2::ConstPtr& cloud,
+    ros::Time& latest_stamp,
+    const char* reason)
+{
+    if (cloud->header.stamp.isZero())
+    {
+        ROS_ERROR_THROTTLE(2.0, "Ignoring %s revocation with zero acquisition timestamp",
+                           reason);
+        return;
+    }
+    if (!latest_stamp.isZero() && cloud->header.stamp == latest_stamp)
+    {
+        ROS_DEBUG("Dropping repeated %s revocation snapshot at %.6f",
+                  reason, cloud->header.stamp.toSec());
+        return;
+    }
+
+    ros::Time session_latest = latest_cloud_stamp_;
+    const ros::Time revocation_latest =
+        latest_revoked_free_stamp_ > latest_revoked_reclassified_stamp_
+            ? latest_revoked_free_stamp_ : latest_revoked_reclassified_stamp_;
+    if (!revocation_latest.isZero() &&
+        (session_latest.isZero() || revocation_latest > session_latest))
+        session_latest = revocation_latest;
+    if (!session_latest.isZero() && cloud->header.stamp < session_latest)
+    {
+        // The two latched event topics and the adapted admission topic are
+        // independent transports. An old event may arrive after a newer one;
+        // only the primary admission stream is allowed to declare a session
+        // rewind and clear the complete map.
+        ROS_WARN_THROTTLE(
+            2.0, "Dropping out-of-order %s revocation (stamp %.6f < latest %.6f)",
+            reason, cloud->header.stamp.toSec(), session_latest.toSec());
+        return;
+    }
+
+    const auto hasFloat32Field = [&cloud](const char* name) {
+        for (const sensor_msgs::PointField& field : cloud->fields)
+        {
+            if (field.name == name)
+                return field.datatype == sensor_msgs::PointField::FLOAT32 &&
+                       field.count == 1u;
+        }
+        return false;
+    };
+    if (!hasFloat32Field("x") || !hasFloat32Field("y") ||
+        !hasFloat32Field("z"))
+    {
+        ROS_ERROR_THROTTLE(
+            2.0, "%s revocation cloud requires x/y/z FLOAT32 fields", reason);
+        return;
+    }
+
+    tf::StampedTransform cloud_to_world;
+    try
+    {
+        tf_listener_.lookupTransform(
+            world_frame_id_, cloud->header.frame_id, cloud->header.stamp,
+            cloud_to_world);
+    }
+    catch (tf::TransformException& ex)
+    {
+        ++tf_failure_count_;
+        ROS_ERROR_STREAM("Transform error for " << reason
+                         << " revocation: " << ex.what()
+                         << "; cumulative TF failures=" << tf_failure_count_);
+        return;
+    }
+
+    tf::Transform cloud_to_map;
+    cloud_to_map.setBasis(cloud_to_world.getBasis());
+    cloud_to_map.setOrigin(cloud_to_world.getOrigin());
+    if (use_initial_pose_reference_)
+    {
+        if (!have_initial_pose_reference_)
+        {
+            ROS_WARN_THROTTLE(
+                2.0, "Ignoring %s revocation before the initial map reference exists",
+                reason);
+            return;
+        }
+        cloud_to_map = initial_cloud_to_world_.inverse() * cloud_to_map;
+    }
+
+    std::vector<Eigen::Vector3f> points;
+    points.reserve(static_cast<std::size_t>(cloud->width) * cloud->height);
+    try
+    {
+        sensor_msgs::PointCloud2ConstIterator<float> x(*cloud, "x");
+        sensor_msgs::PointCloud2ConstIterator<float> y(*cloud, "y");
+        sensor_msgs::PointCloud2ConstIterator<float> z(*cloud, "z");
+        for (; x != x.end(); ++x, ++y, ++z)
+        {
+            if (!std::isfinite(*x) || !std::isfinite(*y) || !std::isfinite(*z))
+                continue;
+            const tf::Vector3 mapped = cloud_to_map * tf::Vector3(*x, *y, *z);
+            points.emplace_back(mapped.x(), mapped.y(), mapped.z());
+        }
+    }
+    catch (const std::runtime_error& exception)
+    {
+        ROS_ERROR_THROTTLE(2.0, "Invalid %s revocation cloud: %s",
+                           reason, exception.what());
+        return;
+    }
+
+    const std::size_t deleted = octomap_generator_->deleteVoxels(points);
+    latest_stamp = cloud->header.stamp;
+    if (deleted > 0)
+    {
+        ROS_INFO("Applied %s revocation at %.6f: deleted %zu OctoMap voxels",
+                 reason, cloud->header.stamp.toSec(), deleted);
+        publishMaps(cloud->header.stamp);
+    }
+}
+
 void OctomapGeneratorNode::insertCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg)
 {
     if (cloud_msg->header.stamp.isZero())
@@ -378,6 +509,30 @@ void OctomapGeneratorNode::insertCloudCallback(const sensor_msgs::PointCloud2::C
                 cloud_msg->header.stamp.toSec(), latest_cloud_stamp_.toSec());
             return;
         }
+    }
+
+    // Revocation events travel directly while admitted snapshots pass through
+    // an adapter. If a newer event wins that race, never let a delayed older
+    // insertion snapshot resurrect the voxel that was just deleted. A snapshot
+    // at the same stamp is safe: upstream already omitted/relabelled the voxel.
+    const ros::Time latest_revocation_stamp =
+        latest_revoked_free_stamp_ > latest_revoked_reclassified_stamp_
+            ? latest_revoked_free_stamp_ : latest_revoked_reclassified_stamp_;
+    if (!latest_revocation_stamp.isZero() &&
+        cloud_msg->header.stamp < latest_revocation_stamp)
+    {
+        ROS_WARN_THROTTLE(
+            2.0, "Dropping semantic map snapshot older than explicit revocation "
+            "watermark (stamp %.6f < revoke %.6f)",
+            cloud_msg->header.stamp.toSec(), latest_revocation_stamp.toSec());
+        return;
+    }
+    if (!latest_cloud_stamp_.isZero() &&
+        cloud_msg->header.stamp == latest_cloud_stamp_)
+    {
+        ROS_DEBUG("Dropping repeated semantic map snapshot at stamp %.6f",
+                  cloud_msg->header.stamp.toSec());
+        return;
     }
 
     // Voxel filter to down sample the point cloud
@@ -417,10 +572,13 @@ void OctomapGeneratorNode::insertCloudCallback(const sensor_msgs::PointCloud2::C
     octomap_generator_->insertPointCloud(cloud, sensorToMap);
     initializeRobotFloor(cloud_msg->header.stamp);
     latest_cloud_stamp_ = cloud_msg->header.stamp;
-    
-    // Publish full octomap
+    publishMaps(cloud_msg->header.stamp);
+}
+
+void OctomapGeneratorNode::publishMaps(const ros::Time& stamp)
+{
     full_map_msg_.header.frame_id = mapFrameId();
-    full_map_msg_.header.stamp = cloud_msg->header.stamp;
+    full_map_msg_.header.stamp = stamp;
 
     octomap_generator_->setWriteSemantics(true);
     if (octomap_msgs::fullMapToMsg(*octomap_generator_->getOctree(), full_map_msg_))
@@ -443,13 +601,23 @@ void OctomapGeneratorNode::insertCloudCallback(const sensor_msgs::PointCloud2::C
     
     // Publish 2D occupancy map
     if (publish_2d_map)
-        publish2DOccupancyMap(octomap_generator_->getOctree(), cloud_msg->header.stamp, mapFrameId());
+        publish2DOccupancyMap(octomap_generator_->getOctree(), stamp, mapFrameId());
 }
 
 void OctomapGeneratorNode::publish2DOccupancyMap(const SemanticOctree* octomap,
                                                  const ros::Time& stamp,
                                                  const std::string& frame_id)
 {
+  if (octomap->size() == 0u)
+  {
+    nav_msgs::OccupancyGrid empty_map;
+    empty_map.header.stamp = stamp;
+    empty_map.header.frame_id = frame_id;
+    empty_map.info.resolution = octomap->getResolution();
+    occ_map_pub_.publish(empty_map);
+    return;
+  }
+
   // get dimensions of octree
   double minX, minY, minZ, maxX, maxY, maxZ;
   octomap->getMetricMin(minX, minY, minZ);

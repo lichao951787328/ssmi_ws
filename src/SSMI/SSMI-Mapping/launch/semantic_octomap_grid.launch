@@ -2,16 +2,30 @@
 <launch>
   <arg name="input_topic" default="/local_3d_semantic_voxel_map/global_semantic_admission_grid"/>
   <arg name="output_topic" default="/semantic_pcl/global_admitted"/>
+  <arg name="semantic_schema"
+       default="$(find semantic_octomap)/params/semantic_schema.yaml"/>
+  <!-- Compatibility only: the local voxel node now publishes output_topic
+       directly. Enable this only for an older raw-grid producer. -->
+  <arg name="use_grid_adapter" default="false"/>
   <arg name="world_frame_id" default="map_start"/>
   <arg name="use_initial_pose_reference" default="false"/>
   <arg name="reference_frame_id" default="map_start"/>
+  <arg name="enable_explicit_revocation" default="true"/>
+  <arg name="revoked_free_topic"
+       default="/local_3d_semantic_voxel_map/revoked_free"/>
+  <arg name="revoked_reclassified_topic"
+       default="/local_3d_semantic_voxel_map/revoked_reclassified"/>
   <arg name="rviz" default="false"/>
   <arg name="rviz_frame" default="$(arg world_frame_id)"/>
 
+  <!-- Load the semantic contract globally so the adapter, OctoMap node and
+       RViz legend all consume the same label/color/role policy. -->
+  <rosparam file="$(arg semantic_schema)" command="load"/>
   <rosparam file="$(find semantic_octomap)/params/semantic_octomap_grid.yaml"
             command="load"/>
 
-  <node pkg="semantic_octomap" type="grid_semantic_adapter_node"
+  <node if="$(arg use_grid_adapter)"
+        pkg="semantic_octomap" type="grid_semantic_adapter_node"
         name="grid_semantic_adapter" output="screen">
     <param name="input_topic" value="$(arg input_topic)"/>
     <param name="output_topic" value="$(arg output_topic)"/>
@@ -22,6 +36,11 @@
   <param name="/octomap/use_initial_pose_reference"
          value="$(arg use_initial_pose_reference)"/>
   <param name="/octomap/reference_frame_id" value="$(arg reference_frame_id)"/>
+  <param name="/octomap/enable_explicit_revocation"
+         value="$(arg enable_explicit_revocation)"/>
+  <param name="/octomap/revoked_free_topic" value="$(arg revoked_free_topic)"/>
+  <param name="/octomap/revoked_reclassified_topic"
+         value="$(arg revoked_reclassified_topic)"/>
   <node pkg="semantic_octomap" type="semantic_octomap_node"
         name="semantic_octomap" output="screen"/>
 

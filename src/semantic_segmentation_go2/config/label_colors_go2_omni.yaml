@@ -1,0 +1,38 @@
+# Canonical RGB palette for the isolated grass / semantic-omni scenario.
+# These exact colors are consumed by semantic_voxel_map_go2_omni.yaml.
+labels:
+  "0":
+    semantic: ground
+    rgb: [0, 0, 0]
+
+  "1":
+    semantic: chair_static
+    rgb: [128, 128, 128]
+
+  "2":
+    semantic: television_static
+    rgb: [128, 128, 128]
+
+  "3":
+    semantic: table_static
+    rgb: [0, 0, 255]
+
+  "4":
+    semantic: boundary_wall_static
+    rgb: [128, 128, 128]
+
+  "5":
+    semantic: maze_wall_or_false_static_mover
+    rgb: [128, 128, 128]
+
+  "6":
+    semantic: dynamic_obstacle
+    rgb: [255, 0, 255]
+
+  "7":
+    semantic: staircase_terrain
+    rgb: [152, 251, 152]
+
+  "8":
+    semantic: grass_terrain
+    rgb: [152, 251, 152]

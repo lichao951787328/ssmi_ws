@@ -44,6 +44,22 @@ public:
             obstacle_semantic_colors_.insert(color & 0x00ffffffu);
     }
 
+    virtual void setSemanticSchema(const semantic_octomap::SemanticSchema& schema)
+    {
+        semantic_schema_ = schema;
+        use_semantic_schema_ = schema.isLoaded();
+        obstacle_semantic_colors_.clear();
+        for (const semantic_octomap::SemanticClass& semantic_class : schema.classes())
+        {
+            if (semantic_class.admit_to_global_map &&
+                semantic_class.role == semantic_octomap::SemanticRole::StaticObstacle)
+            {
+                obstacle_semantic_colors_.insert(
+                    semantic_octomap::SemanticSchema::packRgb(semantic_class.rgb));
+            }
+        }
+    }
+
     virtual void setDynamicFreeUpdates(int updates)
     {
         dynamic_free_updates_ = std::max(0, updates);
@@ -103,6 +119,8 @@ public:
      * \param cloud ROS Pointcloud2 message in arbitrary frame (specified in the clouds header)
      */
     virtual void insertPointCloud(const pcl::PCLPointCloud2::Ptr& cloud, const Eigen::Matrix4f& sensorToWorld);
+
+    virtual std::size_t deleteVoxels(const std::vector<Eigen::Vector3f>& points);
     
     virtual bool get_ray_RLE(const octomap::point3d& origin, const octomap::point3d& end, semantic_octomap::RayRLE& rayRLE_msg);
 
@@ -132,6 +150,8 @@ protected:
     std::unordered_set<uint32_t> obstacle_semantic_colors_; ///<Static obstacle colors with voxel selection priority
     std::unordered_map<uint64_t, octomap::OcTreeKey> previous_dynamic_keys_; ///<Dynamic endpoints in the previous scan
     std::unordered_map<uint64_t, int> dynamic_free_confirmation_counts_; ///<Consecutive free evidence per dynamic voxel
+    semantic_octomap::SemanticSchema semantic_schema_; ///<Shared runtime semantic contract
+    bool use_semantic_schema_ = false; ///<Whether schema filtering/remapping is active
 
 };
 

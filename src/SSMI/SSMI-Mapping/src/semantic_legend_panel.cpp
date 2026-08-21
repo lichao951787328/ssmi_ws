@@ -1,6 +1,8 @@
 #include <semantic_octomap_rviz/semantic_legend_panel.h>
+#include <semantic_octomap_node/semantic_schema.h>
 
 #include <pluginlib/class_list_macros.h>
+#include <ros/ros.h>
 
 #include <QFrame>
 #include <QGridLayout>
@@ -9,45 +11,34 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include <array>
-#include <vector>
+#include <exception>
 
 namespace semantic_octomap
 {
 namespace
 {
-using Rgb = std::array<int, 3>;
-
-struct LegendEntry
+QString roleText(const SemanticRole role)
 {
-    Rgb color;
-    const char* label;
-};
+    switch (role)
+    {
+        case SemanticRole::Terrain: return QString::fromUtf8("可通行地形");
+        case SemanticRole::StaticObstacle: return QString::fromUtf8("静态障碍");
+        case SemanticRole::DynamicObstacle: return QString::fromUtf8("动态障碍");
+        case SemanticRole::Ignore: return QString::fromUtf8("忽略");
+    }
+    return QString::fromUtf8("忽略");
+}
 
-const std::vector<LegendEntry> kLegendEntries = {
-    {{{128, 64, 128}}, "0  道路 (road)"},
-    {{{244, 35, 232}}, "1  人行道 (sidewalk)"},
-    {{{70, 70, 70}}, "2  建筑 (building)"},
-    {{{102, 102, 156}}, "3  墙 / 高代价回退 (wall / high-cost)"},
-    {{{190, 153, 153}}, "4  栅栏 (fence)"},
-    {{{153, 153, 153}}, "5  杆 (pole)"},
-    {{{250, 170, 30}}, "6  交通灯 (traffic light)"},
-    {{{220, 220, 0}}, "7  交通标志 (traffic sign)"},
-    {{{107, 142, 35}}, "8  植被 (vegetation)"},
-    {{{152, 251, 152}}, "9  地形 (terrain)"},
-    {{{70, 130, 180}}, "10 天空 (sky)"},
-    {{{255, 0, 255}}, "11–18 动态障碍合并 (person / vehicle)"},
-    {{{255, 255, 255}}, "无效或未知标签 (unknown)"},
-};
-
-QLabel* makeColorSwatch(const Rgb& rgb)
+QLabel* makeColorSwatch(const SemanticRgb& rgb)
 {
     QLabel* swatch = new QLabel;
     swatch->setFixedSize(24, 18);
     swatch->setFrameShape(QFrame::Box);
     swatch->setStyleSheet(
         QString("background-color: rgb(%1, %2, %3); border: 1px solid #303030;")
-            .arg(rgb[0]).arg(rgb[1]).arg(rgb[2]));
+            .arg(static_cast<int>(rgb[0]))
+            .arg(static_cast<int>(rgb[1]))
+            .arg(static_cast<int>(rgb[2])));
     return swatch;
 }
 }  // namespace
@@ -71,22 +62,78 @@ SemanticLegendPanel::SemanticLegendPanel(QWidget* parent)
     legend_layout->addWidget(title, 0, 0, 1, 2);
 
     int row = 1;
-    for (const LegendEntry& entry : kLegendEntries)
+    try
     {
-        legend_layout->addWidget(makeColorSwatch(entry.color), row, 0,
+        ros::NodeHandle nh;
+        const SemanticSchema schema = SemanticSchema::fromRos(nh);
+        for (const SemanticClass& entry : schema.classes())
+        {
+            legend_layout->addWidget(makeColorSwatch(entry.rgb), row, 0,
+                                     Qt::AlignLeft | Qt::AlignVCenter);
+            QString text = QString("%1  %2 — %3 [%4, %5]")
+                .arg(entry.label)
+                .arg(QString::fromStdString(entry.name))
+                .arg(QString::fromStdString(entry.meaning))
+                .arg(roleText(entry.role))
+                .arg(entry.admit_to_global_map ?
+                    QString::fromUtf8("进入全局图") :
+                    QString::fromUtf8("不进入全局图"));
+            if (!entry.input_rgb_aliases.empty())
+            {
+                text += QString::fromUtf8("；输入颜色别名：");
+                for (const SemanticRgb& alias : entry.input_rgb_aliases)
+                {
+                    text += QString(" [%1,%2,%3]")
+                        .arg(static_cast<int>(alias[0]))
+                        .arg(static_cast<int>(alias[1]))
+                        .arg(static_cast<int>(alias[2]));
+                }
+            }
+            QLabel* label = new QLabel(text);
+            label->setWordWrap(true);
+            label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+            legend_layout->addWidget(label, row, 1);
+            ++row;
+        }
+
+        legend_layout->addWidget(makeColorSwatch(schema.unknownRgb()), row, 0,
                                  Qt::AlignLeft | Qt::AlignVCenter);
-        QLabel* label = new QLabel(QString::fromUtf8(entry.label));
-        label->setTextInteractionFlags(Qt::TextSelectableByMouse);
-        legend_layout->addWidget(label, row, 1);
+        const bool exclude_unknown = schema.unknownPolicy() ==
+            SemanticSchema::UnknownPolicy::Exclude;
+        QLabel* unknown = new QLabel(
+            QString::fromUtf8("未知类别 — %1 [%2]")
+                .arg(QString::fromStdString(schema.unknownMeaning()))
+                .arg(exclude_unknown ? QString::fromUtf8("排除") :
+                                       QString::fromUtf8("映射到回退类别")));
+        unknown->setWordWrap(true);
+        unknown->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        legend_layout->addWidget(unknown, row, 1);
+        ++row;
+
+        QLabel* note = new QLabel(
+            QString::fromUtf8(
+                "说明：该图例直接读取 /semantic_schema。动态类别由全局准入开关排除；"
+                "已准入类别的 traversability ≥ %1 时按标签 %2（%3）编码。")
+                .arg(schema.obstacleThreshold(), 0, 'f', 2)
+                .arg(schema.traversabilityObstacleClass().label)
+                .arg(QString::fromStdString(
+                    schema.traversabilityObstacleClass().name)));
+        note->setWordWrap(true);
+        note->setStyleSheet("color: #555555; margin-top: 8px;");
+        legend_layout->addWidget(note, row, 0, 1, 2);
         ++row;
     }
-
-    QLabel* note = new QLabel(
-        "说明：适配器把原始标签 11–18 统一映射为洋红色；"
-        "可通行/未知点若 traversability ≥ 0.6，则按墙的颜色显示。");
-    note->setWordWrap(true);
-    note->setStyleSheet("color: #555555; margin-top: 8px;");
-    legend_layout->addWidget(note, row, 0, 1, 2);
+    catch (const std::exception& error)
+    {
+        ROS_ERROR("Cannot load /semantic_schema for RViz legend: %s", error.what());
+        QLabel* failure = new QLabel(
+            QString::fromUtf8("无法加载 /semantic_schema：") +
+            QString::fromUtf8(error.what()));
+        failure->setWordWrap(true);
+        failure->setStyleSheet("color: #b00020;");
+        legend_layout->addWidget(failure, row, 0, 1, 2);
+        ++row;
+    }
     legend_layout->setColumnStretch(1, 1);
     legend_layout->setRowStretch(row + 1, 1);
 

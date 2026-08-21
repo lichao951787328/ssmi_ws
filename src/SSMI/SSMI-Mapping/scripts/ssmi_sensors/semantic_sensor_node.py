@@ -47,7 +47,7 @@ class SemanticCloud:
         cx = rospy.get_param(robot_name + '/camera/cx')
         cy = rospy.get_param(robot_name + '/camera/cy')
         intrinsic = np.matrix([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype = np.float32)
-        dynamic_rgb = rospy.get_param(robot_name + '/semantic_pcl/dynamic_rgb', [255, 0, 255])
+        dynamic_rgbs = self.load_dynamic_rgbs()
         self.depth_edge_filter_enabled = rospy.get_param(
             robot_name + '/semantic_pcl/depth_edge_filter/enabled', True)
         self.depth_edge_absolute_threshold = rospy.get_param(
@@ -75,8 +75,39 @@ class SemanticCloud:
             queue_size = 5, slop = synchronization_slop)
         self.ts.registerCallback(self.color_semantic_depth_callback)
         self.cloud_generator = SemanticPclGenerator(intrinsic, self.img_width,self.img_height, unit_conversion, frame_id,
-                                                    self.point_type, dynamic_rgb)
+                                                    self.point_type, dynamic_rgbs)
         print('Semantic point cloud ready!')
+
+    @staticmethod
+    def load_dynamic_rgbs():
+        """Read dynamic canonical colors and aliases from /semantic_schema."""
+        schema = rospy.get_param('/semantic_schema')
+        classes = schema.get('classes', [])
+        if not isinstance(classes, list) or not classes:
+            raise ValueError('/semantic_schema/classes must be a non-empty list')
+
+        colors = []
+        for semantic_class in classes:
+            if semantic_class.get('role') != 'dynamic_obstacle':
+                continue
+            colors.append(semantic_class.get('rgb'))
+            colors.extend(semantic_class.get('input_rgb_aliases', []))
+
+        normalized = []
+        seen = set()
+        for color in colors:
+            if not isinstance(color, list) or len(color) != 3 or any(
+                    not isinstance(channel, int) or channel < 0 or channel > 255
+                    for channel in color):
+                raise ValueError(
+                    'dynamic RGB entries in /semantic_schema must be [R, G, B] integers')
+            key = tuple(color)
+            if key not in seen:
+                seen.add(key)
+                normalized.append(color)
+        rospy.loginfo('Loaded %d dynamic RGB values from /semantic_schema',
+                      len(normalized))
+        return normalized
 
     def filter_depth_edges(self, depth_img, semantic_img):
         """Reject mixed foreground/background pixels without smoothing depth."""
