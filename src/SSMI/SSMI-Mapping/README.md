@@ -101,11 +101,13 @@ not enable it when the current local voxel node is publishing the direct topic.
 
 The input cloud is in `wuba_base` for the bag profile or `base_link` for the
 simulation profile, with coordinates frozen at its acquisition stamp. ROS
-message filtering transforms it into `map_start` at that same stamp. The
-configuration uses 0.10 m resolution, `input_mode: local_grid`, disables
-raycast clearing, and sets `use_initial_pose_reference: false`; SemanticOcTree
-therefore does not publish another `map -> map_start`. Missing cells and dynamic
-occlusion are not free evidence.
+message filtering transforms it into `map_start` at that same stamp. The input
+snapshot uses a 0.10 m local grid, while the persistent SemanticOcTree keeps a
+0.4 m resolution for real-time operation. The configuration uses
+`input_mode: local_grid`, disables raycast clearing, and sets
+`use_initial_pose_reference: false`; SemanticOcTree therefore does not publish
+another `map -> map_start`. Missing cells and dynamic occlusion are not free
+evidence.
 
 Explicit revocation subscriptions are enabled for the local node's confirmed
 `revoked_free` stream. The local node requires repeated positive evidence and

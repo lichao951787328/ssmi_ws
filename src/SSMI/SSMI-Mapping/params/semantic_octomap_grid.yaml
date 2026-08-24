@@ -14,7 +14,9 @@ octomap:
     # A larger backward jump indicates rosbag restart and starts a new map.
     # Set below zero to disable automatic session reset.
     time_jump_reset_threshold: 1.0
-    resolution: 0.1
+    # Keep the persistent global tree coarse enough for real-time operation;
+    # the upstream local semantic snapshot may still use a 0.10 m grid.
+    resolution: 0.4
     max_range: 15.0
     raycast_range: 15.0
     clamping_thres_min: 0.0001
