@@ -1,0 +1,1 @@
+/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/policy_adaptation/go2_robot_lab/shadow_ws/ros_ign_bridge/CMakeLists.txt

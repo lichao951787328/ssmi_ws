@@ -1,0 +1,15 @@
+{
+  "source_model_sdf": "/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/src/semantic_segmentation_go2/models/go2_semantic/model.sdf",
+  "source_model_sha256": "7755225754262a459d7dd538ea5db66b4ea34e511d6a9c3867850176d744c3c6",
+  "source_world": "/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/src/semantic_segmentation_go2/sdf/world_large_dynamic.sdf",
+  "source_world_sha256": "591a4c39d064963b3c48ea8a71d114c83047924e5bc3e2a92321764a8639389b",
+  "generated_model_sdf": "/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/policy_adaptation/go2_robot_lab/friction1_08/go2_semantic_pd_variant/model.sdf",
+  "generated_model_sha256": "7755225754262a459d7dd538ea5db66b4ea34e511d6a9c3867850176d744c3c6",
+  "generated_world": "/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/policy_adaptation/go2_robot_lab/friction1_08/world_large_dynamic_pd_variant.sdf",
+  "generated_world_sha256": "e36b7166cbcfbcbe7254af4c13b06a204e1d01c9f73e0f1d4deb923777d19ba1",
+  "kp": 40.0,
+  "kd": 1.0,
+  "ground_mu": 1.0,
+  "ground_mu2": 0.8,
+  "changed_joint_count": 12
+}

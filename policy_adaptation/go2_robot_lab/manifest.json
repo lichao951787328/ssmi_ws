@@ -1,0 +1,156 @@
+{
+  "source": {
+    "repository": "https://github.com/fan-ziqi/rl_sar.git",
+    "commit": "376d42c9b128f963ab08579762d5a216a976ce39",
+    "policy_original_path": "/tmp/rl_sar_check.wFo7xP/policy/go2/robot_lab/policy.pt",
+    "config_original_path": "/tmp/rl_sar_check.wFo7xP/policy/go2/robot_lab/config.yaml",
+    "policy_sha256": "9f14cb95e74ac9e5e30954da0fc0c33eaa41e337852ebed19fcee869279ade0b",
+    "config_sha256": "b8fbd540597b9f326fd4acb83d97d72306fb9bbc8ef84e1d8e350871b4de4e37"
+  },
+  "generated": {
+    "policy_robot_lab_native.onnx": {
+      "sha256": "edeb08c0bd7635f2591b7ee5e0e20c6c576438a62b133564cd0cd901a7373acf",
+      "interface": {
+        "inputs": [
+          {
+            "name": "input",
+            "shape": [
+              1,
+              45
+            ],
+            "type": "tensor(float)"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "output",
+            "shape": [
+              1,
+              12
+            ],
+            "type": "tensor(float)"
+          }
+        ]
+      }
+    },
+    "actor_robot_lab_legacy_compat.onnx": {
+      "sha256": "104a8ce9e9949f8f0cd5a76bb343796ccdf912747420604a7a751cdb9609d355",
+      "interface": {
+        "inputs": [
+          {
+            "name": "obs",
+            "shape": [
+              1,
+              45
+            ],
+            "type": "tensor(float)"
+          },
+          {
+            "name": "history_obs",
+            "shape": [
+              1,
+              10,
+              45
+            ],
+            "type": "tensor(float)"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "actions",
+            "shape": [
+              1,
+              12
+            ],
+            "type": "tensor(float)"
+          }
+        ]
+      }
+    }
+  },
+  "mapping": {
+    "legacy_joint_order": [
+      "FL",
+      "FR",
+      "RL",
+      "RR"
+    ],
+    "policy_joint_order": [
+      "FR",
+      "FL",
+      "RR",
+      "RL"
+    ],
+    "permutation": [
+      3,
+      4,
+      5,
+      0,
+      1,
+      2,
+      9,
+      10,
+      11,
+      6,
+      7,
+      8
+    ],
+    "legacy_default_position": [
+      0.1,
+      0.8,
+      -1.5,
+      -0.1,
+      0.8,
+      -1.5,
+      0.1,
+      1.0,
+      -1.5,
+      -0.1,
+      1.0,
+      -1.5
+    ],
+    "policy_default_position": [
+      0.0,
+      0.8,
+      -1.5,
+      0.0,
+      0.8,
+      -1.5,
+      0.0,
+      0.8,
+      -1.5,
+      0.0,
+      0.8,
+      -1.5
+    ],
+    "legacy_effective_action_scale": [
+      0.125,
+      0.25,
+      0.25,
+      0.125,
+      0.25,
+      0.25,
+      0.125,
+      0.25,
+      0.25,
+      0.125,
+      0.25,
+      0.25
+    ],
+    "legacy_command_scale_to_policy": [
+      0.5,
+      0.5,
+      4.0
+    ],
+    "legacy_filter": [
+      0.2,
+      0.8
+    ]
+  },
+  "tool_versions": {
+    "torch": "2.4.1+cpu",
+    "onnx": "1.16.2",
+    "onnxruntime": "1.16.3",
+    "numpy": "1.24.4"
+  }
+}

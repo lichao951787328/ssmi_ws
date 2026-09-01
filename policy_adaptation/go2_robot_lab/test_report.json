@@ -1,0 +1,156 @@
+{
+  "passed": true,
+  "tests": {
+    "source_policy_hash": {
+      "passed": true,
+      "sha256": "9f14cb95e74ac9e5e30954da0fc0c33eaa41e337852ebed19fcee869279ade0b"
+    },
+    "legacy_actor_unchanged": {
+      "passed": true,
+      "sha256": "eff13a0b9219e30892c3b979251dea804030a0c874c2da7fd19a75cba67f9b93"
+    },
+    "onnx_checker": {
+      "passed": true
+    },
+    "model_interfaces": {
+      "passed": true,
+      "native": {
+        "inputs": [
+          [
+            "input",
+            [
+              1,
+              45
+            ],
+            "tensor(float)"
+          ]
+        ],
+        "outputs": [
+          [
+            "output",
+            [
+              1,
+              12
+            ],
+            "tensor(float)"
+          ]
+        ]
+      },
+      "legacy_compatible": {
+        "inputs": [
+          [
+            "obs",
+            [
+              1,
+              45
+            ],
+            "tensor(float)"
+          ],
+          [
+            "history_obs",
+            [
+              1,
+              10,
+              45
+            ],
+            "tensor(float)"
+          ]
+        ],
+        "outputs": [
+          [
+            "actions",
+            [
+              1,
+              12
+            ],
+            "tensor(float)"
+          ]
+        ]
+      }
+    },
+    "native_torchscript_vs_onnx": {
+      "passed": true,
+      "max_abs_error": 1.9073486328125e-05,
+      "mean_abs_error": 2.0001482425868744e-06,
+      "absolute_tolerance": 2e-05
+    },
+    "compatibility_wrapper_vs_numpy_reference": {
+      "passed": true,
+      "max_abs_error": 0.0,
+      "mean_abs_error": 0.0,
+      "absolute_tolerance": 3e-05
+    },
+    "sequential_legacy_controller_equivalence": {
+      "passed": true,
+      "steps": 1000,
+      "max_wrapper_reference_error": 0.0,
+      "max_previous_action_feature_error": 3.814697265625e-06,
+      "max_physical_joint_target_error_rad": 9.5367431640625e-07,
+      "maximum_absolute_wrapper_action": 73.44624328613281
+    },
+    "nonfinite_input_guard": {
+      "passed": true,
+      "output_all_finite": true,
+      "maximum_absolute_output": 4.9075541496276855
+    },
+    "cpp_onnxruntime_smoke": {
+      "passed": true,
+      "return_code": 0,
+      "output": "PASS C++ ONNX Runtime smoke test\ninputs=obs,history_obs output=actions actions=-1.44338,-0.18442,0.42844,1.6059,-0.0169,1.49797,-0.995041,-1.26123,0.11368,0.851312,-1.02996,-0.427788"
+    },
+    "finite_clipped_input_stress": {
+      "passed": true,
+      "samples": 200,
+      "maximum_absolute_output_before_legacy_clip": 6193.173828125,
+      "note": "The unchanged C++ controller clips wrapper output to [-100,100]."
+    }
+  },
+  "metrics": {
+    "stationary_first_step": {
+      "wrapper_output": [
+        -1.4433825016021729,
+        -0.18442045152187347,
+        0.4284404516220093,
+        1.6058958768844604,
+        -0.01689990982413292,
+        1.4979722499847412,
+        -0.9950412511825562,
+        -1.2612265348434448,
+        0.11367970705032349,
+        0.8513119220733643,
+        -1.029959797859192,
+        -0.42778751254081726
+      ],
+      "physical_joint_target_rad": [
+        0.060589589178562164,
+        0.7966200113296509,
+        -1.2004055976867676,
+        -0.044338248670101166,
+        0.7631159424781799,
+        -1.4143118858337402,
+        -0.014868810772895813,
+        0.7940080165863037,
+        -1.585557460784912,
+        0.0004958733916282654,
+        0.747754693031311,
+        -1.4772640466690063
+      ],
+      "all_finite": true
+    },
+    "cpu_inference_latency_ms": {
+      "samples": 2000,
+      "mean": 0.0292241973511409,
+      "p50": 0.028670001483988017,
+      "p95": 0.030316304764710367,
+      "p99": 0.037369862839113914,
+      "max": 0.09892499656416476,
+      "control_period_ms": 20.0
+    }
+  },
+  "artifacts": {
+    "source_policy_sha256": "9f14cb95e74ac9e5e30954da0fc0c33eaa41e337852ebed19fcee869279ade0b",
+    "native_onnx_sha256": "edeb08c0bd7635f2591b7ee5e0e20c6c576438a62b133564cd0cd901a7373acf",
+    "compatibility_onnx_sha256": "104a8ce9e9949f8f0cd5a76bb343796ccdf912747420604a7a751cdb9609d355",
+    "legacy_actor_sha256": "eff13a0b9219e30892c3b979251dea804030a0c874c2da7fd19a75cba67f9b93"
+  }
+}

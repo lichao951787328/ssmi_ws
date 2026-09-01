@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "model_name": "go2_semantic",
+  "command": {
+    "linear_velocity_x": 0.3,
+    "drive_seconds": 8.0,
+    "drive_messages": 160,
+    "stop_messages": 40
+  },
+  "drive_start_pose": {
+    "ros_time": 5.993,
+    "x": 3.9796010707980103,
+    "y": 17.999979342431875,
+    "z": 0.278070558536967,
+    "roll": 0.00029933818635530983,
+    "pitch": 0.016430983743167024,
+    "yaw": -7.544286730731088e-05
+  },
+  "drive_end_pose": {
+    "ros_time": 13.993,
+    "x": 6.915721274242555,
+    "y": 19.684190646914814,
+    "z": 0.32022907912823506,
+    "roll": 0.024190588633251495,
+    "pitch": -0.011109448194763071,
+    "yaw": 1.0648381225109271
+  },
+  "final_pose": {
+    "ros_time": 15.995,
+    "x": 6.918422748624054,
+    "y": 19.6979552544859,
+    "z": 0.30023901321815655,
+    "roll": -0.013308054197722729,
+    "pitch": -0.021718514517856845,
+    "yaw": 1.0861669959938876
+  },
+  "metrics": {
+    "pose_samples_during_drive": 8000,
+    "delta_x_m": 2.936120203444545,
+    "delta_y_m": 1.6842113044829397,
+    "planar_displacement_m": 3.3848736412491625,
+    "max_abs_roll_deg": 3.047270387926892,
+    "max_abs_pitch_deg": 4.046404967639871,
+    "minimum_base_height_m": 0.2780725470203921,
+    "maximum_base_height_m": 0.3444171267873189,
+    "joint_count": 12,
+    "joints_finite": true,
+    "poses_finite": true
+  },
+  "criteria": {
+    "minimum_delta_x_m": 0.1,
+    "minimum_base_height_m": 0.15,
+    "maximum_abs_tilt_deg": 35.0
+  }
+}

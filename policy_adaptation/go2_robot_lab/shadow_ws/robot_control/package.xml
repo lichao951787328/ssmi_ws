@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>robot_control</name>
+  <version>0.0.0</version>
+  <description>Read-only test shadow for loading the generated Go2 policy.</description>
+  <maintainer email="local-test@example.invalid">local test</maintainer>
+  <license>Apache-2.0</license>
+</package>

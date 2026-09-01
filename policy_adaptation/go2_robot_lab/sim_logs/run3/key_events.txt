@@ -1,0 +1,3 @@
+23:Model loaded: /home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/policy_adaptation/go2_robot_lab/shadow_ws/robot_control/actor_model/actor.onnx
+24:Input names: obs, history_obs
+25:Input shapes: [1 45 ], [1 10 45 ]

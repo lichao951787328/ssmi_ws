@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>ros_ign_bridge</name>
+  <version>0.0.0</version>
+  <description>Test shadow selecting the locally built Fortress bridge.</description>
+  <maintainer email="local-test@example.invalid">local test</maintainer>
+  <license>Apache-2.0</license>
+</package>

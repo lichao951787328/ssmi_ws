@@ -1,0 +1,87 @@
+{
+  "offline_tests_passed": true,
+  "candidate_stability_passed": true,
+  "candidate_navigation_tracking_passed": false,
+  "model_only_deployment_recommended": false,
+  "tracking_acceptance": {
+    "maximum_absolute_lateral_displacement_m_over_8s": 0.3,
+    "maximum_absolute_yaw_drift_deg_over_8s": 10.0
+  },
+  "runs": {
+    "legacy_policy_kp40_kd1_mu100_mu50": {
+      "source": "/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/policy_adaptation/go2_robot_lab/simulation_probe_baseline.json",
+      "stability_pass": true,
+      "navigation_tracking_pass": true,
+      "delta_x_m": 1.868784337719391,
+      "delta_y_m": 0.018217106570812547,
+      "planar_displacement_m": 1.8688731267470018,
+      "average_world_x_velocity_mps": 0.23359804221492386,
+      "yaw_delta_deg": -2.0355197135295153,
+      "max_abs_roll_deg": 4.628349034827555,
+      "max_abs_pitch_deg": 3.439748539881624,
+      "minimum_base_height_m": 0.24425778138374227,
+      "maximum_base_height_m": 0.2778570824483839,
+      "joint_count": 12,
+      "joints_finite": true
+    },
+    "robot_lab_policy_kp40_kd1_mu100_mu50": {
+      "source": "/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/policy_adaptation/go2_robot_lab/simulation_probe.json",
+      "stability_pass": true,
+      "navigation_tracking_pass": false,
+      "delta_x_m": 2.936120203444545,
+      "delta_y_m": 1.6842113044829397,
+      "planar_displacement_m": 3.3848736412491625,
+      "average_world_x_velocity_mps": 0.36701502543056813,
+      "yaw_delta_deg": 61.0150528424017,
+      "max_abs_roll_deg": 3.047270387926892,
+      "max_abs_pitch_deg": 4.046404967639871,
+      "minimum_base_height_m": 0.2780725470203921,
+      "maximum_base_height_m": 0.3444171267873189,
+      "joint_count": 12,
+      "joints_finite": true
+    },
+    "robot_lab_policy_kp20_kd05_mu100_mu50": {
+      "source": "/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/policy_adaptation/go2_robot_lab/simulation_probe_pd20_kd05.json",
+      "stability_pass": true,
+      "navigation_tracking_pass": false,
+      "delta_x_m": 2.201526759626805,
+      "delta_y_m": 1.2960956630087566,
+      "planar_displacement_m": 2.5547179963790536,
+      "average_world_x_velocity_mps": 0.2751908449533506,
+      "yaw_delta_deg": 60.13629518949687,
+      "max_abs_roll_deg": 1.8129872072801585,
+      "max_abs_pitch_deg": 3.2691758422770976,
+      "minimum_base_height_m": 0.23256062677284361,
+      "maximum_base_height_m": 0.31595556222488014,
+      "joint_count": 12,
+      "joints_finite": true
+    },
+    "robot_lab_policy_kp40_kd1_mu1_mu08": {
+      "source": "/home/yanaibo/mapless_navigation/SSMI-example/ssmi_ws/policy_adaptation/go2_robot_lab/simulation_probe_friction1_08.json",
+      "stability_pass": true,
+      "navigation_tracking_pass": false,
+      "delta_x_m": 2.8255101564102403,
+      "delta_y_m": 1.3237618736373093,
+      "planar_displacement_m": 3.120232866642036,
+      "average_world_x_velocity_mps": 0.35318876955128004,
+      "yaw_delta_deg": 55.56430274963242,
+      "max_abs_roll_deg": 2.9229931343784266,
+      "max_abs_pitch_deg": 3.5991674006508707,
+      "minimum_base_height_m": 0.27806459309656906,
+      "maximum_base_height_m": 0.3425065321431117,
+      "joint_count": 12,
+      "joints_finite": true
+    }
+  },
+  "source_hashes_after_tests": {
+    "legacy_actor.onnx": "eff13a0b9219e30892c3b979251dea804030a0c874c2da7fd19a75cba67f9b93",
+    "FSM_State_RL.cpp": "30bde5530d91c8f7b1cf4749bb580f17a5076a824c69f435ddddb7c3a7cd9086",
+    "FSM_State_RL.h": "c02f6059ad6f86cb53a8fbba65f25f7d55e3e658cba740c547475e74722098b6",
+    "semantic_model.sdf": "7755225754262a459d7dd538ea5db66b4ea34e511d6a9c3867850176d744c3c6"
+  },
+  "notes": [
+    "Gazebo pass in each raw probe means finite/stable/no-fall smoke-test pass only.",
+    "Advanced slope/stair acceptance was not run because the candidate failed flat-ground direction tracking.",
+    "All deployed test changes were isolated generated files and shadow package paths."
+  ]
+}
