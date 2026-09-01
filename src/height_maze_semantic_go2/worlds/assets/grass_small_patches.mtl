@@ -1,0 +1,5 @@
+newmtl grass_small_patches_material
+Ka 0.1800 0.4800 0.1000
+Kd 0.1800 0.4800 0.1000
+Ks 0.02 0.02 0.02
+Ns 4.0

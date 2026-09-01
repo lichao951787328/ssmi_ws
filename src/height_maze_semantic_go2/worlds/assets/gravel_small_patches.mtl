@@ -1,0 +1,5 @@
+newmtl gravel_small_patches_material
+Ka 0.4600 0.4300 0.3800
+Kd 0.4600 0.4300 0.3800
+Ks 0.02 0.02 0.02
+Ns 4.0

@@ -1,0 +1,77 @@
+front:
+  camera: &camera
+    fx: 201.384
+    fy: 201.384
+    cx: 240
+    cy: 135
+    width: 480
+    height: 270
+  semantic_pcl:
+    color_image_topic: /rgbd_camera/image
+    semantic_image_topic: /semantic/colored_map
+    depth_image_topic: /rgbd_camera/depth_image
+    point_type: 0
+    frame_id: rgbd_camera_optical_frame
+    depth_noise_std: 0.0
+    true_class_prob: 1.0
+    synchronization_slop: 0.03
+    depth_edge_filter: &edge_filter
+      enabled: true
+      absolute_threshold: 0.15
+      relative_threshold: 0.03
+      reject_semantic_boundaries: true
+    dynamic_rgb: &dynamic_rgb [255, 0, 255]
+    unit_conversion: 1.0
+  octomap:
+    pointcloud_topic: /semantic_pcl/front
+
+left:
+  camera: *camera
+  semantic_pcl:
+    color_image_topic: /rgbd_left/image
+    semantic_image_topic: /semantic_left/colored_map
+    depth_image_topic: /rgbd_left/depth_image
+    point_type: 0
+    frame_id: rgbd_left_optical_frame
+    depth_noise_std: 0.0
+    true_class_prob: 1.0
+    synchronization_slop: 0.03
+    depth_edge_filter: *edge_filter
+    dynamic_rgb: *dynamic_rgb
+    unit_conversion: 1.0
+  octomap:
+    pointcloud_topic: /semantic_pcl/left
+
+rear:
+  camera: *camera
+  semantic_pcl:
+    color_image_topic: /rgbd_rear/image
+    semantic_image_topic: /semantic_rear/colored_map
+    depth_image_topic: /rgbd_rear/depth_image
+    point_type: 0
+    frame_id: rgbd_rear_optical_frame
+    depth_noise_std: 0.0
+    true_class_prob: 1.0
+    synchronization_slop: 0.03
+    depth_edge_filter: *edge_filter
+    dynamic_rgb: *dynamic_rgb
+    unit_conversion: 1.0
+  octomap:
+    pointcloud_topic: /semantic_pcl/rear
+
+right:
+  camera: *camera
+  semantic_pcl:
+    color_image_topic: /rgbd_right/image
+    semantic_image_topic: /semantic_right/colored_map
+    depth_image_topic: /rgbd_right/depth_image
+    point_type: 0
+    frame_id: rgbd_right_optical_frame
+    depth_noise_std: 0.0
+    true_class_prob: 1.0
+    synchronization_slop: 0.03
+    depth_edge_filter: *edge_filter
+    dynamic_rgb: *dynamic_rgb
+    unit_conversion: 1.0
+  octomap:
+    pointcloud_topic: /semantic_pcl/right

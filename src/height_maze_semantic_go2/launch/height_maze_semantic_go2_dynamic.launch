@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="ign_partition" default="$(anon height_maze_semantic_go2_dynamic_partition)"/>
+  <arg name="model_name" default="go2_semantic_omni"/>
+  <arg name="base_frame" default="base_link"/>
+  <arg name="headless" default="false"/>
+  <arg name="start_semantic_cloud" default="true"/>
+  <arg name="start_control" default="true"/>
+  <arg name="start_rviz" default="true"/>
+
+  <include file="$(find height_maze_semantic_go2)/launch/height_maze_semantic_go2.launch">
+    <arg name="world_file"
+         value="$(find height_maze_semantic_go2)/worlds/height_maze_semantic_go2_dynamic.sdf"/>
+    <arg name="ign_partition" value="$(arg ign_partition)"/>
+    <arg name="model_name" value="$(arg model_name)"/>
+    <arg name="base_frame" value="$(arg base_frame)"/>
+    <arg name="headless" value="$(arg headless)"/>
+    <arg name="start_semantic_cloud" value="$(arg start_semantic_cloud)"/>
+    <arg name="start_control" value="$(arg start_control)"/>
+    <arg name="start_rviz" value="$(arg start_rviz)"/>
+  </include>
+</launch>

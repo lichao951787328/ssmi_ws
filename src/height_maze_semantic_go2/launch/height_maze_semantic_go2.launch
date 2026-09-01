@@ -1,0 +1,205 @@
+<?xml version="1.0"?>
+<launch>
+  <param name="/use_sim_time" value="true"/>
+
+  <arg name="ign_partition" default="$(anon height_maze_semantic_go2_partition)"/>
+  <arg name="model_name" default="go2_semantic_omni"/>
+  <arg name="base_frame" default="base_link"/>
+  <arg name="world_file"
+       default="$(find height_maze_semantic_go2)/worlds/height_maze_semantic_go2.sdf"/>
+  <arg name="headless" default="false"/>
+  <arg name="start_semantic_cloud" default="true"/>
+  <arg name="start_control" default="true"/>
+  <arg name="start_rviz" default="true"/>
+
+  <env name="IGN_PARTITION" value="$(arg ign_partition)"/>
+  <env name="IGN_GAZEBO_SYSTEM_PLUGIN_PATH"
+       value="$(find semantic_segmentation_husky)/../../devel/lib:$(optenv IGN_GAZEBO_SYSTEM_PLUGIN_PATH)"/>
+  <env name="IGN_GAZEBO_RESOURCE_PATH"
+       value="$(find height_maze_semantic_go2)/worlds:$(find height_maze_semantic_go2)/worlds/assets:$(find height_maze_semantic_go2)/models:$(find semantic_segmentation_go2)/models:$(optenv IGN_GAZEBO_RESOURCE_PATH '')"/>
+
+  <include unless="$(arg headless)" file="$(find ros_ign_gazebo)/launch/ign_gazebo.launch">
+    <arg name="ign_args" value="-r -v 1 $(arg world_file)"/>
+  </include>
+  <include if="$(arg headless)" file="$(find ros_ign_gazebo)/launch/ign_gazebo.launch">
+    <arg name="ign_args" value="-r -s -v 1 $(arg world_file)"/>
+  </include>
+
+  <node pkg="ros_ign_bridge" type="parameter_bridge" name="height_maze_go2_ros_ign_bridge"
+        output="screen" args="
+          /clock@rosgraph_msgs/Clock[ignition.msgs.Clock
+          /rgbd_camera/camera_info@sensor_msgs/CameraInfo[ignition.msgs.CameraInfo
+          /rgbd_camera/image@sensor_msgs/Image[ignition.msgs.Image
+          /rgbd_camera/depth_image@sensor_msgs/Image[ignition.msgs.Image
+          /semantic/colored_map@sensor_msgs/Image[ignition.msgs.Image
+          /semantic/labels_map@sensor_msgs/Image[ignition.msgs.Image
+          /rgbd_left/camera_info@sensor_msgs/CameraInfo[ignition.msgs.CameraInfo
+          /rgbd_left/image@sensor_msgs/Image[ignition.msgs.Image
+          /rgbd_left/depth_image@sensor_msgs/Image[ignition.msgs.Image
+          /semantic_left/colored_map@sensor_msgs/Image[ignition.msgs.Image
+          /semantic_left/labels_map@sensor_msgs/Image[ignition.msgs.Image
+          /rgbd_rear/camera_info@sensor_msgs/CameraInfo[ignition.msgs.CameraInfo
+          /rgbd_rear/image@sensor_msgs/Image[ignition.msgs.Image
+          /rgbd_rear/depth_image@sensor_msgs/Image[ignition.msgs.Image
+          /semantic_rear/colored_map@sensor_msgs/Image[ignition.msgs.Image
+          /semantic_rear/labels_map@sensor_msgs/Image[ignition.msgs.Image
+          /rgbd_right/camera_info@sensor_msgs/CameraInfo[ignition.msgs.CameraInfo
+          /rgbd_right/image@sensor_msgs/Image[ignition.msgs.Image
+          /rgbd_right/depth_image@sensor_msgs/Image[ignition.msgs.Image
+          /semantic_right/colored_map@sensor_msgs/Image[ignition.msgs.Image
+          /semantic_right/labels_map@sensor_msgs/Image[ignition.msgs.Image
+          /trunk_imu@sensor_msgs/Imu[ignition.msgs.IMU
+          /model/$(arg model_name)/pose@geometry_msgs/PoseStamped[ignition.msgs.Pose
+          /world/semantic_segmentation_world/model/$(arg model_name)/joint_state@sensor_msgs/JointState[ignition.msgs.Model
+          /model/$(arg model_name)/joint/FR_hip_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FR_thigh_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FR_calf_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FL_hip_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FL_thigh_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/FL_calf_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RR_hip_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RR_thigh_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RR_calf_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RL_hip_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RL_thigh_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double
+          /model/$(arg model_name)/joint/RL_calf_joint/cmd_pos@std_msgs/Float64]ignition.msgs.Double">
+    <remap from="/semantic/colored_map" to="/semantic/raw_colored_map"/>
+    <remap from="/semantic/labels_map" to="/semantic/raw_labels_map"/>
+    <remap from="/semantic_left/colored_map" to="/semantic_left/raw_colored_map"/>
+    <remap from="/semantic_left/labels_map" to="/semantic_left/raw_labels_map"/>
+    <remap from="/semantic_rear/colored_map" to="/semantic_rear/raw_colored_map"/>
+    <remap from="/semantic_rear/labels_map" to="/semantic_rear/raw_labels_map"/>
+    <remap from="/semantic_right/colored_map" to="/semantic_right/raw_colored_map"/>
+    <remap from="/semantic_right/labels_map" to="/semantic_right/raw_labels_map"/>
+  </node>
+
+  <rosparam file="$(find height_maze_semantic_go2)/config/label_colors_height_maze.yaml"
+            command="load"/>
+  <rosparam file="$(find height_maze_semantic_go2)/config/semantic_schema_height_maze.yaml"
+            command="load"/>
+
+  <node pkg="semantic_segmentation_go2" type="dynamic_semantic_remap.py"
+        name="height_maze_semantic_remap_front" output="screen">
+    <param name="raw_labels_topic" value="/semantic/raw_labels_map"/>
+    <param name="raw_colors_topic" value="/semantic/raw_colored_map"/>
+    <param name="labels_topic" value="/semantic/labels_map"/>
+    <param name="colors_topic" value="/semantic/colored_map"/>
+    <param name="dynamic_label" value="6"/>
+    <rosparam param="dynamic_rgb">[255, 0, 255]</rosparam>
+    <rosparam param="dynamic_source_labels">[6]</rosparam>
+  </node>
+  <node pkg="semantic_segmentation_go2" type="dynamic_semantic_remap.py"
+        name="height_maze_semantic_remap_left" output="screen">
+    <param name="raw_labels_topic" value="/semantic_left/raw_labels_map"/>
+    <param name="raw_colors_topic" value="/semantic_left/raw_colored_map"/>
+    <param name="labels_topic" value="/semantic_left/labels_map"/>
+    <param name="colors_topic" value="/semantic_left/colored_map"/>
+    <param name="dynamic_label" value="6"/>
+    <rosparam param="dynamic_rgb">[255, 0, 255]</rosparam>
+    <rosparam param="dynamic_source_labels">[6]</rosparam>
+  </node>
+  <node pkg="semantic_segmentation_go2" type="dynamic_semantic_remap.py"
+        name="height_maze_semantic_remap_rear" output="screen">
+    <param name="raw_labels_topic" value="/semantic_rear/raw_labels_map"/>
+    <param name="raw_colors_topic" value="/semantic_rear/raw_colored_map"/>
+    <param name="labels_topic" value="/semantic_rear/labels_map"/>
+    <param name="colors_topic" value="/semantic_rear/colored_map"/>
+    <param name="dynamic_label" value="6"/>
+    <rosparam param="dynamic_rgb">[255, 0, 255]</rosparam>
+    <rosparam param="dynamic_source_labels">[6]</rosparam>
+  </node>
+  <node pkg="semantic_segmentation_go2" type="dynamic_semantic_remap.py"
+        name="height_maze_semantic_remap_right" output="screen">
+    <param name="raw_labels_topic" value="/semantic_right/raw_labels_map"/>
+    <param name="raw_colors_topic" value="/semantic_right/raw_colored_map"/>
+    <param name="labels_topic" value="/semantic_right/labels_map"/>
+    <param name="colors_topic" value="/semantic_right/colored_map"/>
+    <param name="dynamic_label" value="6"/>
+    <rosparam param="dynamic_rgb">[255, 0, 255]</rosparam>
+    <rosparam param="dynamic_source_labels">[6]</rosparam>
+  </node>
+
+  <node pkg="semantic_segmentation_go2" type="dynamic_tf_go2.py"
+        name="height_maze_go2_dynamic_tf" output="screen">
+    <param name="pose_topic" value="/model/$(arg model_name)/pose"/>
+    <param name="parent_frame" value="world"/>
+    <param name="child_frame" value="$(arg base_frame)"/>
+  </node>
+
+  <group>
+    <node pkg="semantic_segmentation_go2" type="sdf_sensor_tf.py"
+          name="height_maze_camera_tf_front" output="screen">
+      <param name="model_file" value="$(find semantic_segmentation_go2)/models/$(arg model_name)/model.sdf"/>
+      <param name="link_name" value="base"/>
+      <param name="frame_name" value="camera_mount"/>
+      <param name="parent_frame" value="$(arg base_frame)"/>
+      <param name="camera_frame" value="rgbd_camera_link"/>
+      <param name="optical_frame" value="rgbd_camera_optical_frame"/>
+    </node>
+    <node pkg="semantic_segmentation_go2" type="sdf_sensor_tf.py"
+          name="height_maze_camera_tf_left" output="screen">
+      <param name="model_file" value="$(find semantic_segmentation_go2)/models/$(arg model_name)/model.sdf"/>
+      <param name="link_name" value="base"/>
+      <param name="frame_name" value="camera_mount_left"/>
+      <param name="parent_frame" value="$(arg base_frame)"/>
+      <param name="camera_frame" value="rgbd_left_link"/>
+      <param name="optical_frame" value="rgbd_left_optical_frame"/>
+    </node>
+    <node pkg="semantic_segmentation_go2" type="sdf_sensor_tf.py"
+          name="height_maze_camera_tf_rear" output="screen">
+      <param name="model_file" value="$(find semantic_segmentation_go2)/models/$(arg model_name)/model.sdf"/>
+      <param name="link_name" value="base"/>
+      <param name="frame_name" value="camera_mount_rear"/>
+      <param name="parent_frame" value="$(arg base_frame)"/>
+      <param name="camera_frame" value="rgbd_rear_link"/>
+      <param name="optical_frame" value="rgbd_rear_optical_frame"/>
+    </node>
+    <node pkg="semantic_segmentation_go2" type="sdf_sensor_tf.py"
+          name="height_maze_camera_tf_right" output="screen">
+      <param name="model_file" value="$(find semantic_segmentation_go2)/models/$(arg model_name)/model.sdf"/>
+      <param name="link_name" value="base"/>
+      <param name="frame_name" value="camera_mount_right"/>
+      <param name="parent_frame" value="$(arg base_frame)"/>
+      <param name="camera_frame" value="rgbd_right_link"/>
+      <param name="optical_frame" value="rgbd_right_optical_frame"/>
+    </node>
+  </group>
+
+  <group if="$(arg start_semantic_cloud)">
+    <rosparam file="$(find height_maze_semantic_go2)/config/semantic_cloud_go2_omni.yaml"
+              command="load"/>
+    <node pkg="semantic_octomap" type="semantic_sensor_node.py"
+          name="height_maze_semantic_cloud_front" output="screen">
+      <param name="agent_name" value="front"/>
+    </node>
+    <node pkg="semantic_octomap" type="semantic_sensor_node.py"
+          name="height_maze_semantic_cloud_left" output="screen">
+      <param name="agent_name" value="left"/>
+    </node>
+    <node pkg="semantic_octomap" type="semantic_sensor_node.py"
+          name="height_maze_semantic_cloud_rear" output="screen">
+      <param name="agent_name" value="rear"/>
+    </node>
+    <node pkg="semantic_octomap" type="semantic_sensor_node.py"
+          name="height_maze_semantic_cloud_right" output="screen">
+      <param name="agent_name" value="right"/>
+    </node>
+    <node pkg="semantic_segmentation_go2" type="omni_semantic_cloud_merger.py"
+          name="height_maze_omni_semantic_cloud_merger" output="screen">
+      <param name="target_frame" value="$(arg base_frame)"/>
+      <param name="output_topic" value="/semantic_pcl/semantic_pcl"/>
+      <rosparam param="input_topics">[/semantic_pcl/front, /semantic_pcl/left, /semantic_pcl/rear, /semantic_pcl/right]</rosparam>
+      <param name="synchronization_slop" value="0.04"/>
+    </node>
+  </group>
+
+  <include if="$(arg start_control)"
+           file="$(find semantic_segmentation_go2)/launch/go2_rl_control.launch">
+    <arg name="model_name" value="$(arg model_name)"/>
+    <arg name="robot_name" value="go2"/>
+    <arg name="start_keyboard" value="false"/>
+  </include>
+
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="height_maze_go2_rviz"
+        args="-d $(find semantic_segmentation_go2)/rviz/octomap_cam_go2.rviz"/>
+</launch>
