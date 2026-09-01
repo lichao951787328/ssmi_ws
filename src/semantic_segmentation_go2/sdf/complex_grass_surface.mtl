@@ -1,0 +1,9 @@
+newmtl semantic_grass
+Ka 0.18 0.48 0.14
+Kd 0.18 0.48 0.14
+Ks 0.04 0.04 0.04
+Ns 5.0
+d 1.0
+illum 2
+map_Ka complex_grass_texture.png
+map_Kd complex_grass_texture.png

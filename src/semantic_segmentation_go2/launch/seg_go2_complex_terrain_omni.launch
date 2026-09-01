@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="ign_partition" default="$(anon ssmi_go2_complex_terrain_partition)"/>
+  <arg name="model_name" default="go2_semantic_omni"/>
+  <arg name="base_frame" default="base_link"/>
+  <arg name="start_semantic_cloud" default="true"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="start_control" default="true"/>
+
+  <include file="$(find semantic_segmentation_go2)/launch/seg_go2_grass_omni.launch">
+    <arg name="ign_partition" value="$(arg ign_partition)"/>
+    <arg name="world_name" value="world_complex_semantic_terrain_omni.sdf"/>
+    <arg name="model_name" value="$(arg model_name)"/>
+    <arg name="base_frame" value="$(arg base_frame)"/>
+    <arg name="start_semantic_cloud" value="$(arg start_semantic_cloud)"/>
+    <arg name="start_rviz" value="$(arg start_rviz)"/>
+    <arg name="start_control" value="$(arg start_control)"/>
+  </include>
+
+  <!-- XmlLoader applies parameters before starting nodes; this later load
+       replaces the generic omni palette without modifying its launch file. -->
+  <rosparam file="$(find semantic_segmentation_go2)/config/label_colors_complex_terrain.yaml"
+            command="load"/>
+</launch>

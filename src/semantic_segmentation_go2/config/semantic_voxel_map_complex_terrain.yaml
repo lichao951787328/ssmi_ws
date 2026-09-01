@@ -1,0 +1,105 @@
+input_topic: /semantic_pcl/semantic_pcl
+global_frame: world
+use_initial_pose_reference: true
+reference_frame: map_start
+publish_local_cost_cloud: false
+global_admission_output_frame: base_link
+global_admission_exclude_dynamic: true
+publish_ssmi_admitted_cloud: true
+ssmi_admitted_topic: /semantic_pcl/global_admitted
+ssmi_obstacle_traversability_threshold: 0.75
+
+enable_ssmi_obstacle_revocation: true
+ssmi_revocation_voxel_size: 0.10
+ssmi_revocation_minimum_free_frames: 5
+ssmi_revocation_minimum_free_duration: 0.5
+ssmi_revocation_free_max_traversability: 0.45
+ssmi_revocation_minimum_semantic_confidence: 0.60
+ssmi_revocation_ray_evidence_enabled: true
+ssmi_revocation_ray_endpoint_margin: 0.20
+ssmi_revocation_ray_point_stride: 2
+
+terrain_height_cost_enabled: true
+terrain_height_difference_threshold: 0.15
+terrain_height_neighborhood_radius: 0.15
+terrain_height_comparison_epsilon: 0.000001
+terrain_height_obstacle_cost: 1.0
+
+input_layout: image
+point_stride: 1
+semantic_field: semantic_color
+confidence_field: semantic_confidence
+cost_field: traversability
+default_semantic_confidence: 1.0
+transform_timeout: 0.2
+
+input_image_width: 480
+input_image_height: 1080
+pixel_stride_x: 4
+pixel_stride_y: 4
+pixel_offset_x: 2
+pixel_offset_y: 2
+timing_report_frames: 50
+
+voxel_size_xy: 0.10
+voxel_size_z: 0.05
+decay_seconds: 0.5
+max_voxels: 500000
+max_range: 15.0
+min_z: -2.0
+max_z: 5.0
+local_radius: 20.0
+local_box_enabled: false
+robot_body_exclusion_enabled: true
+robot_body_exclusion_min_x: -0.5
+robot_body_exclusion_max_x: 0.5
+robot_body_exclusion_min_y: -0.3
+robot_body_exclusion_max_y: 0.3
+
+semantic_label_remap:
+  - {from: "0x000000", to: 0}
+  - {from: "0x8b5a2b", to: 1}   # dirt trail
+  - {from: "0x228b22", to: 2}   # grass
+  - {from: "0xbebeaa", to: 3}   # gravel
+  - {from: "0x5a5a5a", to: 4}   # boundary
+  - {from: "0xa06e46", to: 5}   # bare earth slope
+  - {from: "0xff00ff", to: 6}   # dynamic obstacle
+  - {from: "0xffa500", to: 7}   # stairs
+  - {from: "0x696969", to: 8}   # natural rock
+  - {from: "0xff5000", to: 9}   # long static
+  - {from: "0x005aff", to: 10}  # rectangular static
+  - {from: "0xffdc00", to: 11}  # round static
+  - {from: "0x00aa64", to: 12}  # vegetation
+  - {from: "0x964b00", to: 13}  # maze corridor wall
+
+semantic_positive_update: 1.0
+semantic_negative_update: -0.1
+semantic_min_log_evidence: -4.59512
+semantic_max_log_evidence: 4.59512
+semantic_new_class_prior: 0.8
+
+unknown_cost: 0.50
+semantic_cost_weight: 0.80
+traversability_fusion_method: weighted_average
+cost_rise_alpha: 0.65
+cost_fall_alpha: 0.15
+
+semantic_classes:
+  - {label: 0,  name: background,          color: [0, 0, 0],       cost: 0.50}
+  - {label: 1,  name: dirt_trail,          color: [139, 90, 43],   cost: 0.08}
+  - {label: 2,  name: grass,               color: [34, 139, 34],   cost: 0.12}
+  - {label: 3,  name: gravel,              color: [190, 190, 170], cost: 0.30}
+  - {label: 4,  name: boundary,            color: [90, 90, 90],    cost: 1.00}
+  - {label: 5,  name: bare_earth_slope,    color: [160, 110, 70],  cost: 0.18}
+  - {label: 6,  name: dynamic_obstacle,    color: [255, 0, 255],   cost: 1.00}
+  - {label: 7,  name: stairs,              color: [255, 165, 0],   cost: 0.45}
+  - {label: 8,  name: natural_rock,        color: [105, 105, 105], cost: 1.00}
+  - {label: 9,  name: long_static,         color: [255, 80, 0],    cost: 0.95}
+  - {label: 10, name: rectangular_static, color: [0, 90, 255],    cost: 0.95}
+  - {label: 11, name: round_static,       color: [255, 220, 0],   cost: 0.95}
+  - {label: 12, name: vegetation,         color: [0, 170, 100],   cost: 0.90}
+  - {label: 13, name: maze_corridor_wall, color: [150, 75, 0],    cost: 0.98}
+
+publish_rate: 10.0
+marker_alpha: 0.85
+map_file: /tmp/local3d_semantic_voxel_map_complex_terrain.csv
