@@ -4,6 +4,8 @@
   <arg name="output_topic" default="/semantic_pcl/global_admitted"/>
   <arg name="semantic_schema"
        default="$(find semantic_octomap)/params/semantic_schema.yaml"/>
+  <!-- false when a parent launch has already loaded the same shared schema. -->
+  <arg name="load_semantic_schema" default="true"/>
   <!-- Compatibility only: the local voxel node now publishes output_topic
        directly. Enable this only for an older raw-grid producer. -->
   <arg name="use_grid_adapter" default="false"/>
@@ -20,7 +22,8 @@
 
   <!-- Load the semantic contract globally so the adapter, OctoMap node and
        RViz legend all consume the same label/color/role policy. -->
-  <rosparam file="$(arg semantic_schema)" command="load"/>
+  <rosparam if="$(arg load_semantic_schema)"
+            file="$(arg semantic_schema)" command="load"/>
   <rosparam file="$(find semantic_octomap)/params/semantic_octomap_grid.yaml"
             command="load"/>
 

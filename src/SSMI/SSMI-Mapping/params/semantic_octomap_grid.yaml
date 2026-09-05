@@ -33,11 +33,11 @@ octomap:
     max_ground_z: 3.5
     initialize_floor: false
 
-    # The admission cloud is an already-fused local grid, not a raw scan.
-    # Missing cells and dynamic occlusion are not free evidence. This inserts
-    # only the endpoints selected by the upstream local filter.
+    # The admission cloud is an already-fused local grid, but ray clearing is
+    # intentionally enabled here so current visible endpoints contribute miss
+    # updates along their rays and remove stale global obstacle occupancy.
     input_mode: local_grid
-    enable_raycast_clearing: false
+    enable_raycast_clearing: true
 
     # The local voxel node emits only multi-frame, positive free-space
     # contradictions. Missing local cells and dynamic occlusion are not events.
